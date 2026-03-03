@@ -21,8 +21,12 @@ public class TerminalGraph {
     // Adjacency List: Gate ID -> List of Edges
     private Map<Integer, List<Edge>> adjList;
 
+    // Caching map: "GateId1-GateId2" -> Distance
+    private Map<String, Double> distanceCache;
+
     public TerminalGraph() {
         this.adjList = new HashMap<>();
+        this.distanceCache = new HashMap<>();
     }
 
     /**
@@ -60,30 +64,65 @@ public class TerminalGraph {
     }
 
     /**
-     * Calculates the shortest path (minimum weight) between two gates using
-     * Dijkstra's Algorithm.
-     *
-     * <p>
-     * <b>Time Complexity:</b> O(E + V log V) using a PriorityQueue.
-     * We visit each edge once and each vertex is extracted from the PQ at most once
-     * (optimized).
-     * </p>
-     *
-     * @param startGateId ID of the starting gate.
-     * @param endGateId   ID of the destination gate.
-     * @return The total weight of the shortest path, or -1 if no path exists.
+     * Pre-computes all shortest paths between every unique pair of gates.
+     * Caches the results in distanceCache for O(1) lookups during GA evaluations.
+     * 
+     * @param allGates The list of all gates in the terminal.
+     */
+    public void precalculateAllDistances(List<Gate> allGates) {
+        System.out
+                .println("[TerminalGraph] Pre-calculating and caching distances for " + allGates.size() + " gates...");
+        distanceCache.clear();
+
+        for (int i = 0; i < allGates.size(); i++) {
+            for (int j = 0; j < allGates.size(); j++) {
+                int gateId1 = allGates.get(i).getId();
+                int gateId2 = allGates.get(j).getId();
+
+                // If they are the same gate, distance is 0.
+                if (gateId1 == gateId2) {
+                    distanceCache.put(gateId1 + "-" + gateId2, 0.0);
+                    continue;
+                }
+
+                // Only compute if we haven't already (since graph is undirected, a->b is same
+                // as b->a)
+                String key = gateId1 + "-" + gateId2;
+                if (!distanceCache.containsKey(key)) {
+                    double dist = runDijkstra(gateId1, gateId2);
+                    distanceCache.put(key, dist);
+                    // Store reverse automatically
+                    distanceCache.put(gateId2 + "-" + gateId1, dist);
+                }
+            }
+        }
+        System.out.println("[TerminalGraph] Pre-calculation complete. Cached " + distanceCache.size() + " paths.");
+    }
+
+    /**
+     * O(1) lookup for distance between two gates.
+     * Must call precalculateAllDistances() first for large-scale performance.
      */
     public double getPathWeight(int startGateId, int endGateId) {
+        String key = startGateId + "-" + endGateId;
+        if (distanceCache.containsKey(key)) {
+            return distanceCache.get(key);
+        }
+        // Fallback penalty if not cached
+        return 9999.0;
+    }
+
+    /**
+     * Internal Isolated Dijkstra's Algorithm logic.
+     */
+    private double runDijkstra(int startGateId, int endGateId) {
         if (!adjList.containsKey(startGateId) || !adjList.containsKey(endGateId)) {
             return -1;
         }
 
-        // PriorityQueue to store pairs of (GateID, CurrentDistance)
-        // Ordered by distance (ascending)
         PriorityQueue<Node> pq = new PriorityQueue<>(Comparator.comparingDouble(node -> node.distance));
         Map<Integer, Double> distances = new HashMap<>();
 
-        // Initialize distances to infinity
         for (Integer id : adjList.keySet()) {
             distances.put(id, Double.MAX_VALUE);
         }
@@ -169,6 +208,9 @@ public class TerminalGraph {
 
         System.out.println("Graph Test Harness Started...");
 
+        List<Gate> allGates = new ArrayList<>(Arrays.asList(g1, g2, g3, g4));
+        graph.precalculateAllDistances(allGates);
+
         // Test 1: Direct connection A -> B
         double dist1 = graph.getPathWeight(1, 2);
         System.out.println("Distance Gate 1 -> Gate 2 (Expected 10.0): " + dist1);
@@ -178,12 +220,13 @@ public class TerminalGraph {
         double dist2 = graph.getPathWeight(1, 4);
         System.out.println("Distance Gate 1 -> Gate 4 (Expected 15.0): " + dist2);
 
-        double dist4= graph.getPathWeight(2,4);
+        double dist4 = graph.getPathWeight(2, 4);
         System.out.println("Distance Gate 2 -> Gate 4: " + dist4);
 
         // Add a shortcut diagonal A -> D
         // sqrt(10^2 + 5^2) = sqrt(125) approx 11.18
         graph.connectGates(g1, g4);
+        graph.precalculateAllDistances(allGates); // Re-calculate to pick up new edges
         double dist3 = graph.getPathWeight(1, 4);
         System.out.println("Distance Gate 1 -> Gate 4 with Diagonal (Expected ~11.18): " + dist3);
 

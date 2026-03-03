@@ -2,8 +2,16 @@ package model.algo.genetic;
 
 import model.Flight;
 import model.FlightRepository;
+import model.Gate;
+import model.enums.GateSize;
+import model.enums.PlaneType;
 import model.spatial.TerminalGraph;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Component responsible for calculating the fitness score of a schedule.
@@ -11,68 +19,113 @@ import java.util.List;
  */
 public class FitnessEvaluator {
     private TerminalGraph graph;
-    private FlightRepository repo; // Not strictly needed if we pass list, but good for lookups if needed.
+    private FlightRepository repo;
+    private Map<Integer, Gate> gateMap;
 
     // Constants
-    private static final double BASE_SCORE = 10000.0;
-    private static final double HARD_PENALTY = 1000.0; // Per collision
-    private static final double SOFT_PENALTY = 0.1; // Per unit of walking distance
+    private static final double BASE_SCORE = 1000000.0;
+    private static final double HARD_PENALTY_OVERLAP = 5000.0;
+    private static final double HARD_PENALTY_SIZE = 2000.0;
+    private static final double SOFT_PENALTY_WALK = 0.0;// 0.1
+    private static final double SOFT_PENALTY_BUFFER = 0.0;// 50.0
 
-    public FitnessEvaluator(TerminalGraph graph, FlightRepository repo) {
+    public FitnessEvaluator(TerminalGraph graph, FlightRepository repo, List<Gate> gates) {
         this.graph = graph;
         this.repo = repo;
+        this.gateMap = new HashMap<>();
+        if (gates != null) {
+            for (Gate g : gates) {
+                this.gateMap.put(g.getId(), g);
+            }
+        }
+    }
+
+    /**
+     * Helper method to check if a Gate is large enough for a PlaneType.
+     * Task 1: Hard Penalty 2 logic helper.
+     */
+    public boolean isGateLargeEnough(GateSize gateSize, PlaneType planeType) {
+        if (planeType == PlaneType.SMALL_BODY)
+            return true; // fits anywhere
+        if (planeType == PlaneType.LARGE_BODY)
+            return gateSize == GateSize.SIZE_LARGE || gateSize == GateSize.SIZE_JUMBO;
+        if (planeType == PlaneType.JUMBO_BODY)
+            return gateSize == GateSize.SIZE_JUMBO;
+        return false;
     }
 
     /**
      * Calculates the fitness of a chromosome (schedule).
-     * <p>
-     * <b>Time Complexity:</b> O(N^2) due to collision checking.
-     * Walking time calculation is O(1) per flight (if connecting info exists) or
-     * O(N) if we simulate all pairs.
-     * Here we just simulate a dummy valid check.
-     * </p>
+     * 
+     * Formula: Fitness = BaseScore - HardPenalties - SoftPenalties
      * 
      * @param chromosome The schedule to evaluate.
      * @param flights    The list of flights.
      * @return The fitness score.
      */
     public double calculateFitness(int[] chromosome, List<Flight> flights) {
-        int collisions = ConstraintChecker.countCollisions(chromosome, flights);
+        double hardPenalties = 0;
+        double softPenalties = 0;
 
-        // Calculate Total Walking Time (Soft Constraint)
-        // For simplicity in this phase, let's assume valid connections between specific
-        // flights?
-        // OR just minimize distance from a central point?
-        // Requirement: "Calculate walking time for all connecting passengers using
-        // graph.getPathWeight()"
-        // Since we don't have explicit "Connecting Passengers" data in Flight class
-        // yet,
-        // let's simulate it: Minimize distance from Gate X to a "Hub" (Gate 0/1) for
-        // all flights?
-        // Or assume sequential flights 1->2, 3->4 connect?
-        // Let's assume sequential flights might have transfer passengers for the sake
-        // of the formula.
-        // Or better: Distance from Entrance (Gate 1).
+        // Group flights by assigned gate
+        Map<Integer, List<Flight>> gateAssignments = new HashMap<>();
+        for (int i = 0; i < chromosome.length; i++) {
+            int gateId = chromosome[i];
+            Flight f = flights.get(i);
 
-        double totalWalkingDistance = 0;
+            gateAssignments.putIfAbsent(gateId, new ArrayList<>());
+            gateAssignments.get(gateId).add(f);
 
-        // Dummy logic: Sum of distances from Gate 1 to Assigned Gate (simulating entry
-        // to gate walk)
-        for (int gateId : chromosome) {
-            // If gateId is 1, distance is 0.
-            // We need to handle if path doesn't exist?
-            double dist = graph.getPathWeight(1, gateId);
-            if (dist != -1) {
-                totalWalkingDistance += dist;
-            } else {
-                totalWalkingDistance += 1000; // Penalty for unreachable???
+            // Hard Penalty 2: Size Mismatch (-2000 points)
+            Gate gate = gateMap.get(gateId);
+            if (gate != null && !isGateLargeEnough(gate.getSize(), f.getType())) {
+                hardPenalties += HARD_PENALTY_SIZE;
             }
         }
 
-        double score = BASE_SCORE
-                - (collisions * HARD_PENALTY)
-                - (totalWalkingDistance * SOFT_PENALTY);
+        // Check for Time Overlaps and Buffer Time per gate
+        for (Map.Entry<Integer, List<Flight>> entry : gateAssignments.entrySet()) {
+            List<Flight> assignedFlights = entry.getValue();
+            // Sort flights by arrival time to properly check for overlaps and consecutive
+            // spacing
+            assignedFlights.sort(Comparator.comparingInt(Flight::getArrivalTime));
 
-        return Math.max(0, score); // Ensure non-negative
+            // Check for Time Overlaps and Buffer Time per gate (O(N log N) Approach)
+            for (int i = 0; i < assignedFlights.size() - 1; i++) {
+                Flight f1 = assignedFlights.get(i);
+                Flight fNext = assignedFlights.get(i + 1);
+
+                // Hard Penalty 1: Time Overlap (-5000 points)
+                // Since it's sorted by arrival time, fNext arrivals always occur at or after f1
+                // arrivals.
+                // We only have an overlap if fNext arrives BEFORE f1 departs.
+                if (fNext.getArrivalTime() < f1.getDepartureTime()) {
+                    hardPenalties += HARD_PENALTY_OVERLAP;
+                } else {
+                    // Soft Penalty 2: Buffer Time (-50 points if less than 15 mins for consecutive
+                    // flights)
+                    // If they don't overlap, check the buffer gap.
+                    int buffer = fNext.getArrivalTime() - f1.getDepartureTime();
+                    if (buffer < 15) {
+                        softPenalties += SOFT_PENALTY_BUFFER;
+                    }
+                }
+            }
+        }
+
+        // Soft Penalty 1: Walking Distance (-0.1 per point of distance)
+        double totalWalkingDistance = 0;
+        for (int gateId : chromosome) {
+            double dist = graph.getPathWeight(1, gateId); // Distance from Entrance (Gate 1)
+            if (dist != -1) {
+                totalWalkingDistance += dist;
+            } else {
+                totalWalkingDistance += 1000; // Large penalty for unreachable gate
+            }
+        }
+        softPenalties += totalWalkingDistance * SOFT_PENALTY_WALK;
+
+        double score = BASE_SCORE - hardPenalties - softPenalties;
+        return score;
     }
 }

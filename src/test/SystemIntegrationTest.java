@@ -6,7 +6,7 @@ import model.Gate;
 import model.algo.GreedyInitializer;
 import model.algo.genetic.GeneticEngine;
 import model.enums.GateSize;
-import model.enums.PlaneType;
+
 import model.spatial.TerminalGraph;
 
 import java.util.ArrayList;
@@ -53,31 +53,24 @@ public class SystemIntegrationTest {
             graph.connectGates(g3, g4);
             graph.connectGates(g4, g5);
 
-            // Create Mock Flights - SOLVABLE SCENARIO
-            // Batch 1: Early Morning (08:00 - 08:20) -> Departs by 09:05 max
-            repo.addFlight(new Flight(1, "F01", 480, PlaneType.SMALL_BODY, 50.0)); // 08:00
-            repo.addFlight(new Flight(2, "F02", 485, PlaneType.LARGE_BODY, 30.0)); // 08:05
-            repo.addFlight(new Flight(3, "F03", 490, PlaneType.JUMBO_BODY, 10.0)); // 08:10
-            repo.addFlight(new Flight(4, "F04", 495, PlaneType.SMALL_BODY, 45.0)); // 08:15
-            repo.addFlight(new Flight(5, "F05", 500, PlaneType.JUMBO_BODY, 15.0)); // 08:20
+            // Load 50 flights from real CSV data
+            System.out.println("\n[SETUP] Loading flights from CSV...");
+            model.utils.DataLoader.loadFlights(repo, "flights.csv");
 
-            // Batch 2: Mid Morning (09:30 - 09:50) -> Safety buffer of ~25 mins from Batch
-            // 1
-            repo.addFlight(new Flight(6, "F06", 570, PlaneType.LARGE_BODY, 25.0)); // 09:30
-            repo.addFlight(new Flight(7, "F07", 575, PlaneType.SMALL_BODY, 20.0)); // 09:35
-            repo.addFlight(new Flight(8, "F08", 580, PlaneType.LARGE_BODY, 18.0)); // 09:40
-            repo.addFlight(new Flight(9, "F09", 585, PlaneType.JUMBO_BODY, 12.0)); // 09:45
-            repo.addFlight(new Flight(10, "F10", 590, PlaneType.SMALL_BODY, 5.0)); // 09:50
-
-            // Explicitly set Turnaround Time
-            System.out.println("\n[DEBUG] Flight Times (Arr -> Dep):");
+            // Explicitly set Turnaround Time for all loaded flights to 45 mins
+            System.out.println("\n[DEBUG] Setting 45-min turnaround & calculating departure times:");
             for (Flight f : repo.getAllFlights()) {
-                f.setServiceDuration(45);
+                f.setServiceDuration(45); // This effectively ensures departureTime = arrivalTime + 45
+
                 String times = String.format("%02d:%02d -> %02d:%02d",
                         f.getArrivalTime() / 60, f.getArrivalTime() % 60,
                         f.getDepartureTime() / 60, f.getDepartureTime() % 60);
-                System.out.println("Flight " + f.getFlightCode() + ": " + times);
+                // Print a few for debugging instead of all 50
+                if (f.getId() <= 5 || f.getId() >= 46) {
+                    System.out.println("Flight " + f.getFlightCode() + ": " + times);
+                }
             }
+            System.out.println("... (listing truncated for brevity) ...");
 
             // ==========================================
             // 2. Verify Spatial Engine
@@ -103,6 +96,10 @@ public class SystemIntegrationTest {
             // ==========================================
             System.out.println("\n[TEST] Verifying Genetic Engine...");
             GeneticEngine genetic = new GeneticEngine(repo, gates, graph);
+
+            // Task 3: Load stress test scale (Pop=500, Rate=0.05, Gens=300)
+            genetic.setParameters(500, 0.05, 300);
+
             int[] bestSol = genetic.run();
 
             // ==========================================
