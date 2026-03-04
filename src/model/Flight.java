@@ -17,6 +17,7 @@ public class Flight implements Comparable<Flight> {
     private PlaneType type;
     private double urgencyScore;
     private FlightState state;
+    private Gate assignedGate; // Proactively added for UI system integration
 
     /**
      * Constructs a new Flight.
@@ -103,6 +104,14 @@ public class Flight implements Comparable<Flight> {
 
     public void setServiceDuration(int serviceDuration) {
         this.serviceDuration = serviceDuration;
+    }
+
+    public Gate getAssignedGate() {
+        return assignedGate;
+    }
+
+    public void setAssignedGate(Gate assignedGate) {
+        this.assignedGate = assignedGate;
     }
 
     /**

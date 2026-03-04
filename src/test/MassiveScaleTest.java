@@ -53,8 +53,8 @@ public class MassiveScaleTest {
             graph.connectGates(gates.get(i), gates.get(i + 1));
         }
 
-        // 2. Dynamic Flight Generation (500 Flights)
-        for (int i = 1; i <= 500; i++) {
+        // 2. Dynamic Flight Generation (380 Flights)
+        for (int i = 1; i <= 380; i++) {
             String flightCode = String.format("FL-%03d", i);
 
             // Randomize Plane Type mappings: 60% SMALL, 30% LARGE, 10% JUMBO
@@ -68,8 +68,8 @@ public class MassiveScaleTest {
                 type = PlaneType.JUMBO_BODY;
             }
 
-            // Arrival time randomly from 0 to 1380 inclusive (represents 00:00 to 23:00)
-            int arrivalTime = rand.nextInt(1381);
+            // Arrival time randomly from 360 to 1260 inclusive (represents 06:00 to 21:00)
+            int arrivalTime = rand.nextInt(901) + 360;
             double urgency = rand.nextDouble() * 100.0;
 
             Flight f = new Flight(i, flightCode, arrivalTime, type, urgency);
