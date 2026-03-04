@@ -23,9 +23,10 @@ public class FitnessEvaluator {
     private Map<Integer, Gate> gateMap;
 
     // Constants
-    private static final double BASE_SCORE = 1000000.0;
+    private static final double REWARD_VALID_FLIGHT = 10000.0;
     private static final double HARD_PENALTY_OVERLAP = 5000.0;
-    private static final double HARD_PENALTY_SIZE = 2000.0;
+    private static final double HARD_PENALTY_SIZE = 50000.0;
+    private static final double HARD_PENALTY_INT = 50000.0;
     private static final double SOFT_PENALTY_WALK = 0.0;// 0.1
     private static final double SOFT_PENALTY_BUFFER = 0.0;// 50.0
 
@@ -66,6 +67,7 @@ public class FitnessEvaluator {
     public double calculateFitness(int[] chromosome, List<Flight> flights) {
         double hardPenalties = 0;
         double softPenalties = 0;
+        double reward = 0;
 
         // Group flights by assigned gate
         Map<Integer, List<Flight>> gateAssignments = new HashMap<>();
@@ -76,10 +78,22 @@ public class FitnessEvaluator {
             gateAssignments.putIfAbsent(gateId, new ArrayList<>());
             gateAssignments.get(gateId).add(f);
 
-            // Hard Penalty 2: Size Mismatch (-2000 points)
+            // Hard Penalty 2: Size Mismatch (-50000 points)
             Gate gate = gateMap.get(gateId);
-            if (gate != null && !isGateLargeEnough(gate.getSize(), f.getType())) {
+            boolean isValidSize = gate != null && isGateLargeEnough(gate.getSize(), f.getType());
+            boolean isValidInt = gate != null && f.isInternational() == gate.isInternational();
+
+            if (!isValidSize) {
                 hardPenalties += HARD_PENALTY_SIZE;
+            }
+
+            // Hard Penalty 3: Domestic/International mismatch (-50000 points)
+            if (!isValidInt) {
+                hardPenalties += HARD_PENALTY_INT;
+            }
+
+            if (isValidSize && isValidInt) {
+                reward += REWARD_VALID_FLIGHT;
             }
         }
 
@@ -125,7 +139,7 @@ public class FitnessEvaluator {
         }
         softPenalties += totalWalkingDistance * SOFT_PENALTY_WALK;
 
-        double score = BASE_SCORE - hardPenalties - softPenalties;
+        double score = reward - hardPenalties - softPenalties;
         return score;
     }
 }

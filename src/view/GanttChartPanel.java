@@ -19,8 +19,6 @@ public class GanttChartPanel extends JPanel {
 
     // Flight Block Colors
     private static final Color EMERALD = new Color(16, 185, 129); // #10b981
-    private static final Color INDIGO = new Color(99, 102, 241); // #6366f1
-    private static final Color AMBER = new Color(245, 158, 11); // #f59e0b
 
     // Chart Configuration
     private static final int NUM_GATES = 30;
@@ -48,11 +46,11 @@ public class GanttChartPanel extends JPanel {
         flightBlocks.clear();
         for (Flight f : realFlights) {
             if (f.getAssignedGate() != null) {
-                Color c = EMERALD;
+                Color c = new Color(234, 179, 8); // eab308 Yellow (Small Body)
                 if (f.getType() == PlaneType.LARGE_BODY)
-                    c = INDIGO;
+                    c = EMERALD; // 10b981 Green (Large Body)
                 else if (f.getType() == PlaneType.JUMBO_BODY)
-                    c = AMBER;
+                    c = new Color(59, 130, 246); // 3b82f6 Blue (Jumbo Body)
 
                 // Map the Gate ID to 0-based array index
                 int gateRow = f.getAssignedGate().getId() - 1;
@@ -132,6 +130,9 @@ public class GanttChartPanel extends JPanel {
                 sizeCategory = "[LARGE]";
             else
                 sizeCategory = "[JUMBO]";
+
+            String intStatus = (gateNum > 20) ? "(INT)" : "(DOM)";
+            sizeCategory += " " + intStatus;
 
             String gateLabel = "GATE " + gateNum;
 

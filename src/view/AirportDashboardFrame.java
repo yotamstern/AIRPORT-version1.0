@@ -29,7 +29,6 @@ public class AirportDashboardFrame extends JFrame {
     private static final Color TEXT_PRIMARY = new Color(255, 255, 255); // #ffffff
     private static final Color TEXT_SECONDARY = new Color(160, 165, 177);// #a0a5b1
     private static final Color BTN_BLUE = new Color(59, 130, 246); // #3b82f6
-    private static final Color BTN_RED = new Color(239, 68, 68); // #ef4444
     private static final Color BTN_RED_ = new Color(239, 68, 68); // #ef4444
     private static final Color BTN_BASIC = new Color(55, 65, 81); // #374151
 
@@ -38,9 +37,17 @@ public class AirportDashboardFrame extends JFrame {
     private JLabel lblAssigned = new JLabel("0");
     private JLabel lblHolding = new JLabel("0");
     private JLabel lblFitness = new JLabel("0");
+
     private JButton btnStartSimulation;
+    private JButton btnPause;
+    private JButton btnReset;
+
     private GanttChartPanel ganttChartPanel;
     private JPanel holdingPanel;
+
+    // Execution Context States (Phase 11)
+    private SwingWorker<Void, Void> currentWorker;
+    private GeneticEngine currentEngine;
 
     public AirportDashboardFrame() {
         // Frame Configuration
@@ -106,6 +113,8 @@ public class AirportDashboardFrame extends JFrame {
         rightSidebar.add(createControlPanel());
         rightSidebar.add(Box.createRigidArea(new Dimension(0, 15))); // Gap between panels
         rightSidebar.add(createStatsPanel());
+        rightSidebar.add(Box.createRigidArea(new Dimension(0, 15)));
+        rightSidebar.add(createLegendPanel());
 
         return rightSidebar;
     }
@@ -120,13 +129,50 @@ public class AirportDashboardFrame extends JFrame {
         btnStartSimulation = createStyledButton("Start Simulation", BTN_BLUE, true);
         btnStartSimulation.addActionListener(e -> runSimulation());
 
-        controlPanel.add(btnStartSimulation);
-        controlPanel.add(createStyledButton("Trigger Delay", BTN_RED, false));
-        controlPanel.add(createStyledButton("Pause", BTN_BASIC, false));
-        controlPanel.add(createStyledButton("Reset", new Color(75, 85, 99), false)); // #4b5563
+        btnPause = createStyledButton("Pause", BTN_BASIC, false);
+        btnPause.addActionListener(e -> togglePause());
 
-        controlPanel.setMaximumSize(new Dimension(250, 220));
+        btnReset = createStyledButton("Reset", new Color(75, 85, 99), false); // #4b5563
+        btnReset.addActionListener(e -> resetSimulation());
+
+        controlPanel.add(btnStartSimulation);
+        controlPanel.add(createStyledButton("Trigger Delay", BTN_RED_, false));
+        controlPanel.add(btnPause);
+        controlPanel.add(btnReset);
+
         return controlPanel;
+    }
+
+    private JPanel createLegendPanel() {
+        JPanel legendPanel = new JPanel();
+        legendPanel.setLayout(new GridLayout(3, 1, 0, 5));
+        legendPanel.setBackground(BG_PANEL);
+        legendPanel.setBorder(createStyledTitledBorder("Aircraft Legend"));
+
+        legendPanel.add(createLegendRow("Jumbo Body", new Color(59, 130, 246))); // Blue
+        legendPanel.add(createLegendRow("Large Body", new Color(16, 185, 129))); // Green
+        legendPanel.add(createLegendRow("Small Body", new Color(234, 179, 8))); // Yellow
+
+        legendPanel.setMaximumSize(new Dimension(250, 150));
+        return legendPanel;
+    }
+
+    private JPanel createLegendRow(String text, Color color) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        row.setBackground(BG_PANEL);
+
+        JLabel colorBox = new JLabel();
+        colorBox.setOpaque(true);
+        colorBox.setBackground(color);
+        colorBox.setPreferredSize(new Dimension(16, 16));
+
+        JLabel textLabel = new JLabel(text);
+        textLabel.setForeground(TEXT_SECONDARY);
+        textLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+
+        row.add(colorBox);
+        row.add(textLabel);
+        return row;
     }
 
     private JPanel createStatsPanel() {
@@ -241,15 +287,31 @@ public class AirportDashboardFrame extends JFrame {
         return button;
     }
 
+    private boolean isGateLargeEnough(GateSize gateSize, PlaneType planeType) {
+        if (planeType == PlaneType.SMALL_BODY)
+            return true;
+        if (planeType == PlaneType.LARGE_BODY)
+            return gateSize == GateSize.SIZE_LARGE || gateSize == GateSize.SIZE_JUMBO;
+        if (planeType == PlaneType.JUMBO_BODY)
+            return gateSize == GateSize.SIZE_JUMBO;
+        return false;
+    }
+
     private void processAndDisplayFlights(List<Flight> currentFlights, double fitnessScore) {
         List<Flight> holdingFlights = new ArrayList<>();
         Map<Integer, List<Flight>> gateMap = new java.util.HashMap<>();
 
         for (Flight f : currentFlights) {
             if (f.getAssignedGate() != null) {
-                int gateId = f.getAssignedGate().getId();
-                gateMap.putIfAbsent(gateId, new ArrayList<>());
-                gateMap.get(gateId).add(f);
+                if (!isGateLargeEnough(f.getAssignedGate().getSize(), f.getType()) ||
+                        f.isInternational() != f.getAssignedGate().isInternational()) {
+                    f.setAssignedGate(null);
+                    holdingFlights.add(f);
+                } else {
+                    int gateId = f.getAssignedGate().getId();
+                    gateMap.putIfAbsent(gateId, new ArrayList<>());
+                    gateMap.get(gateId).add(f);
+                }
             }
         }
 
@@ -284,10 +346,14 @@ public class AirportDashboardFrame extends JFrame {
     }
 
     private void runSimulation() {
+        // Reset the Pause button state cleanly on new runs
+        btnPause.setText("Pause");
+        btnPause.setBackground(BTN_BASIC);
+
         btnStartSimulation.setText("Calculating...");
         btnStartSimulation.setEnabled(false);
 
-        SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+        currentWorker = new SwingWorker<Void, Void>() {
             private List<Flight> finalFlights;
             private double finalFitness;
 
@@ -299,18 +365,41 @@ public class AirportDashboardFrame extends JFrame {
                 Random rand = new Random();
 
                 int gateIdCounter = 1;
-                for (int i = 0; i < 15; i++) {
-                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_SMALL, i * 10, 0);
-                    gates.add(g);
-                    graph.addGate(g);
-                }
+                // Gates 1-10: SMALL, Domestic
                 for (int i = 0; i < 10; i++) {
-                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 150 + i * 15, 0);
+                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_SMALL, i * 10, 0, false);
                     gates.add(g);
                     graph.addGate(g);
                 }
+                // Gates 11-15: SMALL, International
                 for (int i = 0; i < 5; i++) {
-                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 300 + i * 20, 0);
+                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_SMALL, 100 + i * 10, 0, true);
+                    gates.add(g);
+                    graph.addGate(g);
+                }
+
+                // Gates 16-21: LARGE, Domestic
+                for (int i = 0; i < 6; i++) {
+                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 150 + i * 15, 0, false);
+                    gates.add(g);
+                    graph.addGate(g);
+                }
+                // Gates 22-25: LARGE, International
+                for (int i = 0; i < 4; i++) {
+                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 240 + i * 15, 0, true);
+                    gates.add(g);
+                    graph.addGate(g);
+                }
+
+                // Gates 26-27: JUMBO, Domestic
+                for (int i = 0; i < 2; i++) {
+                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 300 + i * 20, 0, false);
+                    gates.add(g);
+                    graph.addGate(g);
+                }
+                // Gates 28-30: JUMBO, International
+                for (int i = 0; i < 3; i++) {
+                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 340 + i * 20, 0, true);
                     gates.add(g);
                     graph.addGate(g);
                 }
@@ -319,20 +408,27 @@ public class AirportDashboardFrame extends JFrame {
                     graph.connectGates(gates.get(i), gates.get(i + 1));
                 }
 
-                for (int i = 1; i <= 380; i++) {
+                for (int i = 1; i <= 280; i++) {
                     String flightCode = String.format("FL-%03d", i);
-                    double r = rand.nextDouble();
-                    PlaneType type = r < 0.60 ? PlaneType.SMALL_BODY
-                            : (r < 0.90 ? PlaneType.LARGE_BODY : PlaneType.JUMBO_BODY);
+                    int sizeRoll = rand.nextInt(100);
+                    PlaneType type;
+                    if (sizeRoll < 70) {
+                        type = PlaneType.SMALL_BODY;
+                    } else if (sizeRoll < 90) {
+                        type = PlaneType.LARGE_BODY;
+                    } else {
+                        type = PlaneType.JUMBO_BODY;
+                    }
                     int arrivalTime = rand.nextInt(901) + 360;
-                    Flight f = new Flight(i, flightCode, arrivalTime, type, rand.nextDouble() * 100.0);
+                    boolean isInternational = rand.nextDouble() < 0.30;
+                    Flight f = new Flight(i, flightCode, arrivalTime, type, rand.nextDouble() * 100.0, isInternational);
                     f.setServiceDuration(45);
                     repo.addFlight(f);
                 }
 
-                GeneticEngine engine = new GeneticEngine(repo, gates, graph);
-                engine.setParameters(200, 0.05, 500); // Massive constraints limit for fast UI response
-                int[] bestSolution = engine.run(progressFlights -> {
+                currentEngine = new GeneticEngine(repo, gates, graph);
+                currentEngine.setParameters(200, 0.05, 500); // Massive constraints limit for fast UI response
+                int[] bestSolution = currentEngine.run(progressFlights -> {
                     SwingUtilities.invokeLater(() -> processAndDisplayFlights(progressFlights, -1));
                 });
 
@@ -354,6 +450,8 @@ public class AirportDashboardFrame extends JFrame {
             @Override
             protected void done() {
                 try {
+                    if (isCancelled())
+                        return;
                     get(); // Wait and catch potential worker errors
                     processAndDisplayFlights(finalFlights, finalFitness);
                 } catch (Exception e) {
@@ -367,7 +465,45 @@ public class AirportDashboardFrame extends JFrame {
             }
         };
 
-        worker.execute();
+        currentWorker.execute();
+    }
+
+    private void togglePause() {
+        if (currentEngine == null)
+            return;
+
+        if (currentEngine.isPaused()) {
+            currentEngine.resumeEngine();
+            btnPause.setText("Pause");
+            btnPause.setBackground(BTN_BASIC);
+        } else {
+            currentEngine.pauseEngine();
+            btnPause.setText("Resume");
+            btnPause.setBackground(new Color(16, 185, 129)); // #10b981 Emerald Green
+        }
+    }
+
+    private void resetSimulation() {
+        if (currentWorker != null && !currentWorker.isDone()) {
+            currentWorker.cancel(true);
+        }
+        if (currentEngine != null) {
+            currentEngine.resumeEngine(); // Unblock interrupted threads
+        }
+
+        ganttChartPanel.updateSchedule(new ArrayList<>());
+        updateHoldingPanel(new ArrayList<>());
+
+        lblTotalFlights.setText("0");
+        lblAssigned.setText("0");
+        lblHolding.setText("0");
+        lblFitness.setText("0");
+
+        btnStartSimulation.setText("Start Simulation");
+        btnStartSimulation.setEnabled(true);
+
+        btnPause.setText("Pause");
+        btnPause.setBackground(BTN_BASIC);
     }
 
     public static void main(String[] args) {

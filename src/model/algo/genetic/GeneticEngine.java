@@ -21,6 +21,9 @@ public class GeneticEngine {
     private List<Flight> flights;
     private List<int[]> population;
 
+    // Concurrency Controls (Phase 11)
+    private volatile boolean isPaused = false;
+
     // GA Parameters (Instance variables for Parameter Tuning)
     private int populationSize = 100;
     private double mutationRate = 0.05;
@@ -229,6 +232,18 @@ public class GeneticEngine {
         int stagnantGenerations = 0;
 
         for (int i = 0; i < maxGenerations; i++) {
+            while (isPaused) {
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            if (Thread.currentThread().isInterrupted()) {
+                break; // Safe bailout if worker is canceled
+            }
+
             evolve(evaluator);
             int[] best = getBestSolution(evaluator);
             double currentBestFitness = evaluator.calculateFitness(best, flights);
@@ -240,7 +255,7 @@ public class GeneticEngine {
                     Flight clone = flights.get(j);
                     // Warning: Ideally clone the flight, but for now we map it directly:
                     Flight copy = new Flight(clone.getId(), clone.getFlightCode(), clone.getArrivalTime(),
-                            clone.getType(), clone.getUrgencyScore());
+                            clone.getType(), clone.getUrgencyScore(), clone.isInternational());
                     copy.setServiceDuration(clone.getServiceDuration());
 
                     int gateId = best[j];
@@ -264,6 +279,18 @@ public class GeneticEngine {
         }
 
         return getBestSolution(evaluator);
+    }
+
+    public void pauseEngine() {
+        this.isPaused = true;
+    }
+
+    public void resumeEngine() {
+        this.isPaused = false;
+    }
+
+    public boolean isPaused() {
+        return isPaused;
     }
 
     // Test Harness

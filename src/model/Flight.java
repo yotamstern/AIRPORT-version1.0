@@ -18,6 +18,7 @@ public class Flight implements Comparable<Flight> {
     private double urgencyScore;
     private FlightState state;
     private Gate assignedGate; // Proactively added for UI system integration
+    private boolean isInternational; // Phase 15 Constraints
 
     /**
      * Constructs a new Flight.
@@ -31,13 +32,27 @@ public class Flight implements Comparable<Flight> {
      *                     priority).
      */
     public Flight(int id, String flightCode, int arrivalTime, PlaneType type, double urgencyScore) {
+        this(id, flightCode, arrivalTime, type, urgencyScore, false);
+    }
+
+    public Flight(int id, String flightCode, int arrivalTime, PlaneType type, double urgencyScore,
+            boolean isInternational) {
         this.id = id;
         this.flightCode = flightCode;
         this.arrivalTime = arrivalTime;
         this.type = type;
         this.urgencyScore = urgencyScore;
+        this.isInternational = isInternational;
         this.state = new PlannedState(); // Initial state
         this.state.enter(this);
+    }
+
+    public boolean isInternational() {
+        return isInternational;
+    }
+
+    public void setInternational(boolean isInternational) {
+        this.isInternational = isInternational;
     }
 
     /**

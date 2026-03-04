@@ -32,18 +32,41 @@ public class MassiveScaleTest {
         // 1. Dynamic Gate Generation (30 Gates total)
         // 15 SMALL, 10 LARGE, 5 JUMBO
         int gateIdCounter = 1;
-        for (int i = 0; i < 15; i++) {
-            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_SMALL, i * 10, 0);
-            gates.add(g);
-            graph.addGate(g);
-        }
+        // Gates 1-10: SMALL, Domestic
         for (int i = 0; i < 10; i++) {
-            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 150 + i * 15, 0);
+            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_SMALL, i * 10, 0, false);
             gates.add(g);
             graph.addGate(g);
         }
+        // Gates 11-15: SMALL, International
         for (int i = 0; i < 5; i++) {
-            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 300 + i * 20, 0);
+            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_SMALL, 100 + i * 10, 0, true);
+            gates.add(g);
+            graph.addGate(g);
+        }
+
+        // Gates 16-21: LARGE, Domestic
+        for (int i = 0; i < 6; i++) {
+            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 150 + i * 15, 0, false);
+            gates.add(g);
+            graph.addGate(g);
+        }
+        // Gates 22-25: LARGE, International
+        for (int i = 0; i < 4; i++) {
+            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 240 + i * 15, 0, true);
+            gates.add(g);
+            graph.addGate(g);
+        }
+
+        // Gates 26-27: JUMBO, Domestic
+        for (int i = 0; i < 2; i++) {
+            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 300 + i * 20, 0, false);
+            gates.add(g);
+            graph.addGate(g);
+        }
+        // Gates 28-30: JUMBO, International
+        for (int i = 0; i < 3; i++) {
+            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 340 + i * 20, 0, true);
             gates.add(g);
             graph.addGate(g);
         }
@@ -53,16 +76,16 @@ public class MassiveScaleTest {
             graph.connectGates(gates.get(i), gates.get(i + 1));
         }
 
-        // 2. Dynamic Flight Generation (380 Flights)
-        for (int i = 1; i <= 380; i++) {
+        // 2. Dynamic Flight Generation (280 Flights)
+        for (int i = 1; i <= 280; i++) {
             String flightCode = String.format("FL-%03d", i);
 
-            // Randomize Plane Type mappings: 60% SMALL, 30% LARGE, 10% JUMBO
-            double r = rand.nextDouble();
+            // Randomize Plane Type mappings: 70% SMALL, 20% LARGE, 10% JUMBO
+            int sizeRoll = rand.nextInt(100);
             PlaneType type;
-            if (r < 0.60) {
+            if (sizeRoll < 70) {
                 type = PlaneType.SMALL_BODY;
-            } else if (r < 0.90) {
+            } else if (sizeRoll < 90) {
                 type = PlaneType.LARGE_BODY;
             } else {
                 type = PlaneType.JUMBO_BODY;
@@ -71,8 +94,9 @@ public class MassiveScaleTest {
             // Arrival time randomly from 360 to 1260 inclusive (represents 06:00 to 21:00)
             int arrivalTime = rand.nextInt(901) + 360;
             double urgency = rand.nextDouble() * 100.0;
+            boolean isInternational = rand.nextDouble() < 0.30;
 
-            Flight f = new Flight(i, flightCode, arrivalTime, type, urgency);
+            Flight f = new Flight(i, flightCode, arrivalTime, type, urgency, isInternational);
             f.setServiceDuration(45); // DepartureTime = ArrivalTime + 45
             repo.addFlight(f);
         }

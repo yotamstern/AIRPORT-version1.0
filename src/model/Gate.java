@@ -13,6 +13,7 @@ public class Gate {
     private GateStatus status;
     private int x;
     private int y;
+    private boolean isInternational;
 
     /**
      * Constructs a new Gate.
@@ -23,11 +24,24 @@ public class Gate {
      * @param y    The y-coordinate location.
      */
     public Gate(int id, GateSize size, int x, int y) {
+        this(id, size, x, y, false);
+    }
+
+    public Gate(int id, GateSize size, int x, int y, boolean isInternational) {
         this.id = id;
         this.size = size;
         this.status = GateStatus.FREE; // Default status
         this.x = x;
         this.y = y;
+        this.isInternational = isInternational;
+    }
+
+    public boolean isInternational() {
+        return isInternational;
+    }
+
+    public void setInternational(boolean isInternational) {
+        this.isInternational = isInternational;
     }
 
     public int getId() {
