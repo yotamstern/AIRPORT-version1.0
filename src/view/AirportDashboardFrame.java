@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.PriorityQueue;
 
 import model.Flight;
 import model.FlightRepository;
@@ -33,7 +34,7 @@ public class AirportDashboardFrame extends JFrame {
     private static final Color BTN_BASIC = new Color(55, 65, 81); // #374151
 
     // UI References
-    private JLabel lblTotalFlights = new JLabel("500");
+    private JLabel lblTotalFlights = new JLabel("");
     private JLabel lblAssigned = new JLabel("0");
     private JLabel lblHolding = new JLabel("0");
     private JLabel lblFitness = new JLabel("0");
@@ -73,7 +74,7 @@ public class AirportDashboardFrame extends JFrame {
         leftNav.setPreferredSize(new Dimension(80, 0));
         leftNav.setBorder(new EmptyBorder(30, 0, 0, 0)); // Top margin for icons
 
-        String[] icons = { "🏠", "✈️", "📊", "⚙️" };
+        String[] icons = { "🏠", "✈️ ", "📊", "⚙️ " };
         String[] tooltips = { "Dashboard", "Flight Schedule", "Analytics", "Settings" };
 
         for (int i = 0; i < icons.length; i++) {
@@ -250,10 +251,15 @@ public class AirportDashboardFrame extends JFrame {
         return centerContent;
     }
 
-    private void updateHoldingPanel(List<Flight> holdingFlights) {
+    private void updateHoldingPanel(PriorityQueue<Flight> holdingFlights) {
         holdingPanel.removeAll();
-        for (Flight f : holdingFlights) {
-            JLabel lblHoldingFlight = new JLabel(f.getFlightCode() + " (" + f.getType() + ")");
+        PriorityQueue<Flight> copy = new PriorityQueue<>(holdingFlights);
+        while (!copy.isEmpty()) {
+            Flight f = copy.poll();
+            String arrTime = String.format("%02d:%02d", f.getArrivalTime() / 60, f.getArrivalTime() % 60);
+            String depTime = String.format("%02d:%02d", f.getDepartureTime() / 60, f.getDepartureTime() % 60);
+            JLabel lblHoldingFlight = new JLabel(
+                    f.getFlightCode() + " (" + f.getType() + ") [" + arrTime + " - " + depTime + "]");
             lblHoldingFlight.setOpaque(true);
             lblHoldingFlight.setBackground(BTN_RED_);
             lblHoldingFlight.setForeground(TEXT_PRIMARY);
@@ -298,7 +304,13 @@ public class AirportDashboardFrame extends JFrame {
     }
 
     private void processAndDisplayFlights(List<Flight> currentFlights, double fitnessScore) {
-        List<Flight> holdingFlights = new ArrayList<>();
+        PriorityQueue<Flight> holdingFlights = new PriorityQueue<>((f1, f2) -> {
+            int p1 = f1.getType() == PlaneType.JUMBO_BODY ? 3 : (f1.getType() == PlaneType.LARGE_BODY ? 2 : 1);
+            int p2 = f2.getType() == PlaneType.JUMBO_BODY ? 3 : (f2.getType() == PlaneType.LARGE_BODY ? 2 : 1);
+            if (p1 != p2)
+                return Integer.compare(p2, p1);
+            return Integer.compare(f1.getArrivalTime(), f2.getArrivalTime());
+        });
         Map<Integer, List<Flight>> gateMap = new java.util.HashMap<>();
 
         for (Flight f : currentFlights) {
@@ -428,8 +440,8 @@ public class AirportDashboardFrame extends JFrame {
 
                 currentEngine = new GeneticEngine(repo, gates, graph);
                 currentEngine.setParameters(200, 0.05, 500); // Massive constraints limit for fast UI response
-                int[] bestSolution = currentEngine.run(progressFlights -> {
-                    SwingUtilities.invokeLater(() -> processAndDisplayFlights(progressFlights, -1));
+                int[] bestSolution = currentEngine.run((progressFlights, currentFitness) -> {
+                    SwingUtilities.invokeLater(() -> processAndDisplayFlights(progressFlights, currentFitness));
                 });
 
                 FitnessEvaluator evaluator = new FitnessEvaluator(graph, repo, gates);
@@ -492,7 +504,7 @@ public class AirportDashboardFrame extends JFrame {
         }
 
         ganttChartPanel.updateSchedule(new ArrayList<>());
-        updateHoldingPanel(new ArrayList<>());
+        updateHoldingPanel(new PriorityQueue<>());
 
         lblTotalFlights.setText("0");
         lblAssigned.setText("0");

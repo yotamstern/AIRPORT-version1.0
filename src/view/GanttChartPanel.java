@@ -28,7 +28,7 @@ public class GanttChartPanel extends JPanel {
     private static final int TOTAL_MINUTES = (END_HOUR - START_HOUR) * 60;
 
     // Margins constraints for drawing area
-    private static final int MARGIN_LEFT = 110; // Widened for the "[JUMBO]" labels
+    private static final int MARGIN_LEFT = 145; // Widened for the "[JUMBO]" labels and Gate text
     private static final int MARGIN_RIGHT = 30;
     private static final int MARGIN_TOP = 40;
     private static final int MARGIN_BOTTOM = 20;
@@ -38,7 +38,7 @@ public class GanttChartPanel extends JPanel {
     public GanttChartPanel() {
         setBackground(BG_PANEL);
         int calculatedHeight = (NUM_GATES * ROW_HEIGHT) + MARGIN_TOP + MARGIN_BOTTOM;
-        setPreferredSize(new Dimension(1200, calculatedHeight));
+        setPreferredSize(new Dimension(1600, calculatedHeight));
         flightBlocks = new ArrayList<>();
     }
 
@@ -190,7 +190,7 @@ public class GanttChartPanel extends JPanel {
     }
 
     private void drawFlights(Graphics2D g2d, double rowHeight, double pixelsPerMinute) {
-        g2d.setFont(new Font("SansSerif", Font.BOLD, 11));
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 10));
         FontMetrics fm = g2d.getFontMetrics();
 
         int blockPaddingY = 4; // Padding top and bottom within the row
@@ -230,22 +230,47 @@ public class GanttChartPanel extends JPanel {
 
             // Draw Flight Text
             g2d.setColor(TEXT_PRIMARY);
-            String label = flight.flightCode + " (" + flight.planeType + ")";
+            String arrMin = String.format("%02d", flight.startMinute % 60);
+            int hourDiff = (flight.endMinute / 60) - (flight.startMinute / 60);
+            String depMin = String.format("%02d", flight.endMinute % 60) + (hourDiff > 0 ? " +" + hourDiff : "");
+            String timeStr = arrMin + "->" + depMin;
 
-            // Only draw text if the block is wide enough to reasonably hold it
-            int textWidth = fm.stringWidth(label);
-            if (textWidth + 10 < blockWidth) {
-                int textX = xStart + (blockWidth - textWidth) / 2;
-                int textY = yPos + (blockHeight / 2) + (fm.getAscent() / 2) - 2;
-                g2d.drawString(label, textX, textY);
-            } else {
-                // Determine if code alone fits
-                int shortTextWidth = fm.stringWidth(flight.flightCode);
-                if (shortTextWidth + 4 < blockWidth) {
-                    int textX = xStart + (blockWidth - shortTextWidth) / 2;
-                    int textY = yPos + (blockHeight / 2) + (fm.getAscent() / 2) - 2;
-                    g2d.drawString(flight.flightCode, textX, textY);
-                }
+            String codeSizeStr = flight.flightCode + " (" + flight.planeType + ")";
+            String singleLineFull = codeSizeStr + " " + timeStr;
+            String singleLineMedium = flight.flightCode + " " + timeStr;
+
+            int fullWidth = fm.stringWidth(singleLineFull);
+            int mediumWidth = fm.stringWidth(singleLineMedium);
+            int codeWidth = fm.stringWidth(flight.flightCode);
+            int timeWidth = fm.stringWidth(timeStr);
+
+            int fontHeight = fm.getAscent();
+
+            if (fullWidth + 10 < blockWidth) {
+                // Fits all on one line
+                int textX = xStart + (blockWidth - fullWidth) / 2;
+                int textY = yPos + (blockHeight / 2) + (fontHeight / 2) - 2;
+                g2d.drawString(singleLineFull, textX, textY);
+            } else if (mediumWidth + 10 < blockWidth) {
+                // Fits medium on one line
+                int textX = xStart + (blockWidth - mediumWidth) / 2;
+                int textY = yPos + (blockHeight / 2) + (fontHeight / 2) - 2;
+                g2d.drawString(singleLineMedium, textX, textY);
+            } else if (Math.max(codeWidth, timeWidth) + 4 < blockWidth && blockHeight > fontHeight * 2) {
+                // Two lines: Code on top, Time on bottom
+                int textXCode = xStart + (blockWidth - codeWidth) / 2;
+                int textXTime = xStart + (blockWidth - timeWidth) / 2;
+
+                int textYCode = yPos + (blockHeight / 2) - 2;
+                int textYTime = yPos + (blockHeight / 2) + fontHeight - 2;
+
+                g2d.drawString(flight.flightCode, textXCode, textYCode);
+                g2d.drawString(timeStr, textXTime, textYTime);
+            } else if (codeWidth + 4 < blockWidth) {
+                // Fallback: Just code
+                int textX = xStart + (blockWidth - codeWidth) / 2;
+                int textY = yPos + (blockHeight / 2) + (fontHeight / 2) - 2;
+                g2d.drawString(flight.flightCode, textX, textY);
             }
         }
     }

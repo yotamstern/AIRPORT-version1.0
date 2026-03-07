@@ -7,7 +7,7 @@ import model.algo.GreedyInitializer;
 import model.spatial.TerminalGraph;
 
 import java.util.*;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * The core engine of the Genetic Algorithm.
@@ -224,7 +224,7 @@ public class GeneticEngine {
         return run(null);
     }
 
-    public int[] run(Consumer<List<Flight>> onGenerationComplete) {
+    public int[] run(BiConsumer<List<Flight>, Double> onGenerationComplete) {
         initializePopulation();
         FitnessEvaluator evaluator = new FitnessEvaluator(graph, flightRepo, gates);
 
@@ -262,7 +262,7 @@ public class GeneticEngine {
                     copy.setAssignedGate(gates.get(gateId - 1));
                     currentBestFlights.add(copy);
                 }
-                onGenerationComplete.accept(currentBestFlights);
+                onGenerationComplete.accept(currentBestFlights, currentBestFitness);
             }
 
             if (currentBestFitness > previousBestFitness) {
