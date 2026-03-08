@@ -2,6 +2,8 @@ package model;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 
 /**
@@ -10,9 +12,11 @@ import java.util.Map;
  */
 public class FlightRepository {
     private Map<Integer, Flight> flights;
+    private List<Transfer> transfers;
 
     public FlightRepository() {
         this.flights = new HashMap<>();
+        this.transfers = new ArrayList<>();
     }
 
     /**
@@ -41,5 +45,23 @@ public class FlightRepository {
      */
     public Collection<Flight> getAllFlights() {
         return flights.values();
+    }
+
+    /**
+     * Adds a passenger transfer dependency between two flights.
+     * 
+     * @param t The Transfer object to add.
+     */
+    public void addTransfer(Transfer t) {
+        transfers.add(t);
+    }
+
+    /**
+     * Retrieves all connecting transfers in the repository.
+     * 
+     * @return List of all transfers.
+     */
+    public List<Transfer> getAllTransfers() {
+        return transfers;
     }
 }

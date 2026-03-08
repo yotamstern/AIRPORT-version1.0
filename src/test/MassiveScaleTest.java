@@ -45,28 +45,22 @@ public class MassiveScaleTest {
             graph.addGate(g);
         }
 
-        // Gates 16-21: LARGE, Domestic
-        for (int i = 0; i < 6; i++) {
+        // Gates 16-20: LARGE, Domestic
+        for (int i = 0; i < 5; i++) {
             Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 150 + i * 15, 0, false);
             gates.add(g);
             graph.addGate(g);
         }
-        // Gates 22-25: LARGE, International
-        for (int i = 0; i < 4; i++) {
-            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 240 + i * 15, 0, true);
+        // Gates 21-25: LARGE, International
+        for (int i = 0; i < 5; i++) {
+            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 225 + i * 15, 0, true);
             gates.add(g);
             graph.addGate(g);
         }
 
-        // Gates 26-27: JUMBO, Domestic
-        for (int i = 0; i < 2; i++) {
-            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 300 + i * 20, 0, false);
-            gates.add(g);
-            graph.addGate(g);
-        }
-        // Gates 28-30: JUMBO, International
-        for (int i = 0; i < 3; i++) {
-            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 340 + i * 20, 0, true);
+        // Gates 26-30: JUMBO, International (All Jumbo are international now)
+        for (int i = 0; i < 5; i++) {
+            Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 300 + i * 20, 0, true);
             gates.add(g);
             graph.addGate(g);
         }

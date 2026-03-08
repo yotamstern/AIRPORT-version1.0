@@ -8,6 +8,7 @@ import javax.swing.border.TitledBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -38,6 +39,7 @@ public class AirportDashboardFrame extends JFrame {
     private JLabel lblAssigned = new JLabel("0");
     private JLabel lblHolding = new JLabel("0");
     private JLabel lblFitness = new JLabel("0");
+    private JLabel lblGeneration = new JLabel("0");
 
     private JButton btnStartSimulation;
     private JButton btnPause;
@@ -45,10 +47,11 @@ public class AirportDashboardFrame extends JFrame {
 
     private GanttChartPanel ganttChartPanel;
     private JPanel holdingPanel;
-
+    private boolean isInternational;
     // Execution Context States (Phase 11)
     private SwingWorker<Void, Void> currentWorker;
     private GeneticEngine currentEngine;
+    private List<Gate> systemGates;
 
     public AirportDashboardFrame() {
         // Frame Configuration
@@ -190,8 +193,10 @@ public class AirportDashboardFrame extends JFrame {
         statsPanel.add(createStatRow("Holding", lblHolding));
         statsPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         statsPanel.add(createStatRow("Fitness Score", lblFitness));
+        statsPanel.add(Box.createRigidArea(new Dimension(0, 12)));
+        statsPanel.add(createStatRow("Current Generation", lblGeneration));
 
-        statsPanel.setMaximumSize(new Dimension(250, 300));
+        statsPanel.setMaximumSize(new Dimension(250, 360));
         return statsPanel;
     }
 
@@ -258,8 +263,9 @@ public class AirportDashboardFrame extends JFrame {
             Flight f = copy.poll();
             String arrTime = String.format("%02d:%02d", f.getArrivalTime() / 60, f.getArrivalTime() % 60);
             String depTime = String.format("%02d:%02d", f.getDepartureTime() / 60, f.getDepartureTime() % 60);
+            String intStatus = f.isInternational() ? "(I)" : "(D)";
             JLabel lblHoldingFlight = new JLabel(
-                    f.getFlightCode() + " (" + f.getType() + ") [" + arrTime + " - " + depTime + "]");
+                    f.getFlightCode() + " " + intStatus + " (" + f.getType() + ") [" + arrTime + " - " + depTime + "]");
             lblHoldingFlight.setOpaque(true);
             lblHoldingFlight.setBackground(BTN_RED_);
             lblHoldingFlight.setForeground(TEXT_PRIMARY);
@@ -303,7 +309,7 @@ public class AirportDashboardFrame extends JFrame {
         return false;
     }
 
-    private void processAndDisplayFlights(List<Flight> currentFlights, double fitnessScore) {
+    private void processAndDisplayFlights(List<Flight> currentFlights, double fitnessScore, int currentGeneration) {
         PriorityQueue<Flight> holdingFlights = new PriorityQueue<>((f1, f2) -> {
             int p1 = f1.getType() == PlaneType.JUMBO_BODY ? 3 : (f1.getType() == PlaneType.LARGE_BODY ? 2 : 1);
             int p2 = f2.getType() == PlaneType.JUMBO_BODY ? 3 : (f2.getType() == PlaneType.LARGE_BODY ? 2 : 1);
@@ -340,6 +346,47 @@ public class AirportDashboardFrame extends JFrame {
             }
         }
 
+        // Phase 20: Greedy Repair Algorithm (Run only on Final Step)
+        if (currentGeneration == -1 && systemGates != null) {
+            PriorityQueue<Flight> stillHolding = new PriorityQueue<>(holdingFlights.comparator());
+            while (!holdingFlights.isEmpty()) {
+                Flight f = holdingFlights.poll();
+                boolean assigned = false;
+
+                for (Gate gate : systemGates) {
+                    if (isGateLargeEnough(gate.getSize(), f.getType())
+                            && gate.isInternational() == f.isInternational()) {
+                        int gateId = gate.getId();
+                        List<Flight> assignedToGate = gateMap.getOrDefault(gateId, new ArrayList<>());
+
+                        boolean canFit = true;
+                        for (Flight existingFlight : assignedToGate) {
+                            if (!(f.getDepartureTime() <= existingFlight.getArrivalTime() ||
+                                    f.getArrivalTime() >= existingFlight.getDepartureTime())) {
+                                canFit = false;
+                                break;
+                            }
+                        }
+
+                        if (canFit) {
+                            f.setAssignedGate(gate);
+                            assignedToGate.add(f);
+                            assignedToGate.sort(Comparator.comparingInt(Flight::getArrivalTime));
+                            gateMap.put(gateId, assignedToGate);
+                            assigned = true;
+                            // Add to GA fitness manually for UI display consistency of 10k Base Score Match
+                            fitnessScore += 10000;
+                            break;
+                        }
+                    }
+                }
+                if (!assigned) {
+                    stillHolding.add(f);
+                }
+            }
+            holdingFlights = stillHolding;
+        }
+
         int currentAssigned = currentFlights.size() - holdingFlights.size();
         int currentHolding = holdingFlights.size();
 
@@ -354,6 +401,12 @@ public class AirportDashboardFrame extends JFrame {
             lblFitness.setText(String.format("%.0f", fitnessScore));
         } else {
             lblFitness.setText("Calculating...");
+        }
+
+        if (currentGeneration != -1) {
+            lblGeneration.setText(String.valueOf(currentGeneration));
+        } else {
+            lblGeneration.setText("Complete");
         }
     }
 
@@ -373,6 +426,7 @@ public class AirportDashboardFrame extends JFrame {
             protected Void doInBackground() throws Exception {
                 FlightRepository repo = new FlightRepository();
                 List<Gate> gates = new ArrayList<>();
+                systemGates = gates;
                 TerminalGraph graph = new TerminalGraph();
                 Random rand = new Random();
 
@@ -390,28 +444,22 @@ public class AirportDashboardFrame extends JFrame {
                     graph.addGate(g);
                 }
 
-                // Gates 16-21: LARGE, Domestic
-                for (int i = 0; i < 6; i++) {
+                // Gates 16-20: LARGE, Domestic
+                for (int i = 0; i < 5; i++) {
                     Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 150 + i * 15, 0, false);
                     gates.add(g);
                     graph.addGate(g);
                 }
-                // Gates 22-25: LARGE, International
-                for (int i = 0; i < 4; i++) {
-                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 240 + i * 15, 0, true);
+                // Gates 21-25: LARGE, International
+                for (int i = 0; i < 5; i++) {
+                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 225 + i * 15, 0, true);
                     gates.add(g);
                     graph.addGate(g);
                 }
 
-                // Gates 26-27: JUMBO, Domestic
-                for (int i = 0; i < 2; i++) {
-                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 300 + i * 20, 0, false);
-                    gates.add(g);
-                    graph.addGate(g);
-                }
-                // Gates 28-30: JUMBO, International
-                for (int i = 0; i < 3; i++) {
-                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 340 + i * 20, 0, true);
+                // Gates 26-30: JUMBO, International (All Jumbo are international now)
+                for (int i = 0; i < 5; i++) {
+                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 300 + i * 20, 0, true);
                     gates.add(g);
                     graph.addGate(g);
                 }
@@ -420,28 +468,32 @@ public class AirportDashboardFrame extends JFrame {
                     graph.connectGates(gates.get(i), gates.get(i + 1));
                 }
 
-                for (int i = 1; i <= 280; i++) {
+                for (int i = 1; i <= 300; i++) {
                     String flightCode = String.format("FL-%03d", i);
                     int sizeRoll = rand.nextInt(100);
                     PlaneType type;
+                    boolean intStatus;
                     if (sizeRoll < 70) {
                         type = PlaneType.SMALL_BODY;
+                        intStatus = rand.nextDouble() < 0.35;
                     } else if (sizeRoll < 90) {
                         type = PlaneType.LARGE_BODY;
+                        intStatus = rand.nextDouble() < 0.5;
                     } else {
                         type = PlaneType.JUMBO_BODY;
+                        intStatus = true; // jumbo planes have to be international
                     }
                     int arrivalTime = rand.nextInt(901) + 360;
-                    boolean isInternational = rand.nextDouble() < 0.30;
-                    Flight f = new Flight(i, flightCode, arrivalTime, type, rand.nextDouble() * 100.0, isInternational);
+                    Flight f = new Flight(i, flightCode, arrivalTime, type, rand.nextDouble() * 100.0, intStatus);
                     f.setServiceDuration(45);
                     repo.addFlight(f);
                 }
 
                 currentEngine = new GeneticEngine(repo, gates, graph);
                 currentEngine.setParameters(200, 0.05, 500); // Massive constraints limit for fast UI response
-                int[] bestSolution = currentEngine.run((progressFlights, currentFitness) -> {
-                    SwingUtilities.invokeLater(() -> processAndDisplayFlights(progressFlights, currentFitness));
+                int[] bestSolution = currentEngine.run((progressFlights, currentFitness, generation) -> {
+                    SwingUtilities
+                            .invokeLater(() -> processAndDisplayFlights(progressFlights, currentFitness, generation));
                 });
 
                 FitnessEvaluator evaluator = new FitnessEvaluator(graph, repo, gates);
@@ -465,7 +517,7 @@ public class AirportDashboardFrame extends JFrame {
                     if (isCancelled())
                         return;
                     get(); // Wait and catch potential worker errors
-                    processAndDisplayFlights(finalFlights, finalFitness);
+                    processAndDisplayFlights(finalFlights, finalFitness, -1);
                 } catch (Exception e) {
                     e.printStackTrace();
                     JOptionPane.showMessageDialog(AirportDashboardFrame.this, "Simulation error: " + e.getMessage(),
@@ -505,11 +557,11 @@ public class AirportDashboardFrame extends JFrame {
 
         ganttChartPanel.updateSchedule(new ArrayList<>());
         updateHoldingPanel(new PriorityQueue<>());
-
         lblTotalFlights.setText("0");
         lblAssigned.setText("0");
         lblHolding.setText("0");
         lblFitness.setText("0");
+        lblGeneration.setText("0");
 
         btnStartSimulation.setText("Start Simulation");
         btnStartSimulation.setEnabled(true);

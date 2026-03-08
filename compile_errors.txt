@@ -1,0 +1,8 @@
+src\view\AirportDashboardFrame.java:517: error: incompatible types: cannot infer type arguments for ArrayList<>
+        updateHoldingPanel(new ArrayList<>());
+                                        ^
+    reason: no instance(s) of type variable(s) E exist so that ArrayList<E> conforms to PriorityQueue<Flight>
+  where E is a type-variable:
+    E extends Object declared in class ArrayList
+Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full output
+1 error

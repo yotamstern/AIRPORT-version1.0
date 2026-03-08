@@ -224,7 +224,11 @@ public class GeneticEngine {
         return run(null);
     }
 
-    public int[] run(BiConsumer<List<Flight>, Double> onGenerationComplete) {
+    public interface ProgressCallback {
+        void accept(List<Flight> flights, double fitness, int generation);
+    }
+
+    public int[] run(ProgressCallback onGenerationComplete) {
         initializePopulation();
         FitnessEvaluator evaluator = new FitnessEvaluator(graph, flightRepo, gates);
 
@@ -249,20 +253,13 @@ public class GeneticEngine {
             double currentBestFitness = evaluator.calculateFitness(best, flights);
             System.out.println("Generation " + i + " | Best Fitness: " + currentBestFitness);
 
-            if (onGenerationComplete != null && i % 5 == 0) { // Update UI every 5 generations to prevent EDT choke
+            if (onGenerationComplete != null /*&& i % 5 == 0*/) { // Update UI every 5 generations to prevent EDT choke
                 List<Flight> currentBestFlights = new ArrayList<>();
                 for (int j = 0; j < flights.size(); j++) {
-                    Flight clone = flights.get(j);
-                    // Warning: Ideally clone the flight, but for now we map it directly:
-                    Flight copy = new Flight(clone.getId(), clone.getFlightCode(), clone.getArrivalTime(),
-                            clone.getType(), clone.getUrgencyScore(), clone.isInternational());
-                    copy.setServiceDuration(clone.getServiceDuration());
-
-                    int gateId = best[j];
-                    copy.setAssignedGate(gates.get(gateId - 1));
+                    Flight copy = getFlight(j, best);
                     currentBestFlights.add(copy);
                 }
-                onGenerationComplete.accept(currentBestFlights, currentBestFitness);
+                onGenerationComplete.accept(currentBestFlights, currentBestFitness, i);
             }
 
             if (currentBestFitness > previousBestFitness) {
@@ -279,6 +276,18 @@ public class GeneticEngine {
         }
 
         return getBestSolution(evaluator);
+    }
+
+    private Flight getFlight(int j, int[] best) {
+        Flight clone = flights.get(j);
+        // Warning: Ideally clone the flight, but for now we map it directly:
+        Flight copy = new Flight(clone.getId(), clone.getFlightCode(), clone.getArrivalTime(),
+                clone.getType(), clone.getUrgencyScore(), clone.isInternational());
+        copy.setServiceDuration(clone.getServiceDuration());
+
+        int gateId = best[j];
+        copy.setAssignedGate(gates.get(gateId - 1));
+        return copy;
     }
 
     public void pauseEngine() {

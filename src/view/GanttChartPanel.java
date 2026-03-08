@@ -131,7 +131,10 @@ public class GanttChartPanel extends JPanel {
             else
                 sizeCategory = "[JUMBO]";
 
-            String intStatus = (gateNum > 20) ? "(INT)" : "(DOM)";
+            boolean isInt = ((gateNum >= 11 && gateNum <= 15) ||
+                    (gateNum >= 21 && gateNum <= 25) ||
+                    (gateNum >= 26 && gateNum <= 30));
+            String intStatus = isInt ? "(INT)" : "(DOM)";
             sizeCategory += " " + intStatus;
 
             String gateLabel = "GATE " + gateNum;
