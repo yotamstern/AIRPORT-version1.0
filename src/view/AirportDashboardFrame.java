@@ -61,7 +61,6 @@ public class AirportDashboardFrame extends JFrame {
         getContentPane().setBackground(BG_MAIN);
 
         // Build UI Components
-        add(createLeftNavigation(), BorderLayout.WEST);
         add(createRightSidebar(), BorderLayout.EAST);
         add(createCenterContent(), BorderLayout.CENTER);
     }
