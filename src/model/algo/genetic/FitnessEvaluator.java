@@ -24,11 +24,12 @@ public class FitnessEvaluator {
 
     // Constants
     private static final double REWARD_VALID_FLIGHT = 10000.0;
-    private static final double HARD_PENALTY_OVERLAP = 5000.0;
+    private static final double HARD_PENALTY_OVERLAP = 15000.0;
     private static final double HARD_PENALTY_SIZE = 50000.0;
     private static final double HARD_PENALTY_INT = 50000.0;
     private static final double SOFT_PENALTY_WALK = 0.0;// 0.1
     private static final double SOFT_PENALTY_BUFFER = 0.0;// 50.0
+    private static final double SOFT_PENALTY_WASTE = 2000.0;
 
     public FitnessEvaluator(TerminalGraph graph, FlightRepository repo, List<Gate> gates) {
         this.graph = graph;
@@ -39,6 +40,19 @@ public class FitnessEvaluator {
                 this.gateMap.put(g.getId(), g);
             }
         }
+    }
+
+    /**
+     * Helper method to calculate how much a plane is wasting gate size capacity.
+     */
+    public int getWastedSpaceLevel(GateSize gateSize, PlaneType planeType) {
+        if (planeType == PlaneType.SMALL_BODY) {
+            if (gateSize == GateSize.SIZE_LARGE) return 1;
+            if (gateSize == GateSize.SIZE_JUMBO) return 2;
+        } else if (planeType == PlaneType.LARGE_BODY) {
+            if (gateSize == GateSize.SIZE_JUMBO) return 1;
+        }
+        return 0;
     }
 
     /**
@@ -94,6 +108,7 @@ public class FitnessEvaluator {
 
             if (isValidSize && isValidInt) {
                 reward += REWARD_VALID_FLIGHT;
+                softPenalties += getWastedSpaceLevel(gate.getSize(), f.getType()) * SOFT_PENALTY_WASTE;
             }
         }
 

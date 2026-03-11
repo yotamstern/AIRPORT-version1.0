@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.PriorityQueue;
 
 import model.Flight;
@@ -336,10 +335,13 @@ public class AirportDashboardFrame extends JFrame {
         for (List<Flight> gateFlights : gateMap.values()) {
             gateFlights.sort((f1, f2) -> Integer.compare(f1.getArrivalTime(), f2.getArrivalTime()));
             int lastEndTime = -1;
-            for (Flight f : gateFlights) {
+            java.util.Iterator<Flight> iter = gateFlights.iterator();
+            while(iter.hasNext()) {
+                Flight f = iter.next();
                 if (f.getArrivalTime() < lastEndTime) {
                     f.setAssignedGate(null);
                     holdingFlights.add(f);
+                    iter.remove(); // CRITICAL: remove from the gateMap so it doesn't phantom-block other flights!
                 } else {
                     lastEndTime = f.getDepartureTime();
                 }
@@ -428,7 +430,6 @@ public class AirportDashboardFrame extends JFrame {
                 List<Gate> gates = new ArrayList<>();
                 systemGates = gates;
                 TerminalGraph graph = new TerminalGraph();
-                Random rand = new Random();
 
                 int gateIdCounter = 1;
                 // Gates 1-10: SMALL, Domestic
@@ -450,15 +451,15 @@ public class AirportDashboardFrame extends JFrame {
                     gates.add(g);
                     graph.addGate(g);
                 }
-                // Gates 21-25: LARGE, International
-                for (int i = 0; i < 5; i++) {
+                // Gates 21-24: LARGE, International
+                for (int i = 0; i < 4; i++) {
                     Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 225 + i * 15, 0, true);
                     gates.add(g);
                     graph.addGate(g);
                 }
 
-                // Gates 26-30: JUMBO, International (All Jumbo are international now)
-                for (int i = 0; i < 5; i++) {
+                // Gates 25-30: JUMBO, International (All Jumbo are international now)
+                for (int i = 0; i < 6; i++) {
                     Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 300 + i * 20, 0, true);
                     gates.add(g);
                     graph.addGate(g);
@@ -468,29 +469,17 @@ public class AirportDashboardFrame extends JFrame {
                     graph.connectGates(gates.get(i), gates.get(i + 1));
                 }
 
-                for (int i = 1; i <= 300; i++) {
-                    String flightCode = String.format("FL-%03d", i);
-                    int sizeRoll = rand.nextInt(100);
-                    PlaneType type;
-                    boolean intStatus;
-                    if (sizeRoll < 70) {
-                        type = PlaneType.SMALL_BODY;
-                        intStatus = rand.nextDouble() < 0.35;
-                    } else if (sizeRoll < 90) {
-                        type = PlaneType.LARGE_BODY;
-                        intStatus = rand.nextDouble() < 0.5;
-                    } else {
-                        type = PlaneType.JUMBO_BODY;
-                        intStatus = true; // jumbo planes have to be international
-                    }
-                    int arrivalTime = rand.nextInt(901) + 360;
-                    Flight f = new Flight(i, flightCode, arrivalTime, type, rand.nextDouble() * 100.0, intStatus);
-                    f.setServiceDuration(45);
+                // Generate a fresh set of flights to the CSV file
+                model.utils.FlightCSVGenerator.main(new String[0]);
+                
+                // Load flights from the generated CSV file
+                Map<String, Flight> loadedFlights = model.utils.CSVLoader.loadFlights("flights.csv");
+                for (Flight f : loadedFlights.values()) {
                     repo.addFlight(f);
                 }
 
                 currentEngine = new GeneticEngine(repo, gates, graph);
-                currentEngine.setParameters(200, 0.05, 500); // Massive constraints limit for fast UI response
+                currentEngine.setParameters(100, 0.05, 500); // Massive constraints limit for fast UI response
                 int[] bestSolution = currentEngine.run((progressFlights, currentFitness, generation) -> {
                     SwingUtilities
                             .invokeLater(() -> processAndDisplayFlights(progressFlights, currentFitness, generation));

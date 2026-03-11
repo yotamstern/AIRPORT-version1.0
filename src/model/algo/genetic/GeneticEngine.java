@@ -137,6 +137,28 @@ public class GeneticEngine {
         return child;
     }
 
+    private List<Gate> getValidGates(Flight f, FitnessEvaluator evaluator) {
+        List<Gate> validGates = new ArrayList<>();
+        // First priority: Exact match (no wasted space)
+        for (Gate g : gates) {
+            if (evaluator.isGateLargeEnough(g.getSize(), f.getType()) &&
+                g.isInternational() == f.isInternational() &&
+                evaluator.getWastedSpaceLevel(g.getSize(), f.getType()) == 0) {
+                validGates.add(g);
+            }
+        }
+        // Second priority: Any valid size
+        if (validGates.isEmpty()) {
+            for (Gate g : gates) {
+                if (evaluator.isGateLargeEnough(g.getSize(), f.getType()) &&
+                    g.isInternational() == f.isInternational()) {
+                    validGates.add(g);
+                }
+            }
+        }
+        return validGates.isEmpty() ? gates : validGates; // Fallback to all gates
+    }
+
     /**
      * Conflict-Directed Mutation (Task 2):
      * Instead of purely random mutation, there is a 50% chance to target a flight
@@ -151,16 +173,20 @@ public class GeneticEngine {
             if (rand.nextDouble() < 0.5) {
                 List<Integer> conflicts = getConflictIndices(child, evaluator);
                 if (!conflicts.isEmpty()) {
-                    // Pick a random flight that has a conflict and re-assign it
+                    // Pick a random flight that has a conflict and re-assign it to a valid gate
                     int indexToMutate = conflicts.get(rand.nextInt(conflicts.size()));
-                    child[indexToMutate] = gates.get(rand.nextInt(gates.size())).getId();
+                    Flight f = flights.get(indexToMutate);
+                    List<Gate> validGates = getValidGates(f, evaluator);
+                    child[indexToMutate] = validGates.get(rand.nextInt(validGates.size())).getId();
                     return; // Successfully performed targeted mutation
                 }
             }
 
             // Fallback: Random mutation on any gene
             int index = rand.nextInt(child.length);
-            child[index] = gates.get(rand.nextInt(gates.size())).getId();
+            Flight f = flights.get(index);
+            List<Gate> validGates = getValidGates(f, evaluator);
+            child[index] = validGates.get(rand.nextInt(validGates.size())).getId();
         }
     }
 
@@ -181,10 +207,18 @@ public class GeneticEngine {
 
             boolean hasConflict = false;
 
-            // Size Mismatch check
-            if (gate != null && !evaluator.isGateLargeEnough(gate.getSize(), f1.getType())) {
-                hasConflict = true;
-            } else {
+            // Size, International, and Wasted Space Mismatch check
+            if (gate != null) {
+                boolean isTooSmall = !evaluator.isGateLargeEnough(gate.getSize(), f1.getType());
+                boolean wrongInt = f1.isInternational() != gate.isInternational();
+                boolean isWasted = evaluator.getWastedSpaceLevel(gate.getSize(), f1.getType()) > 0;
+                
+                if (isTooSmall || wrongInt || isWasted) {
+                    hasConflict = true;
+                }
+            }
+            
+            if (!hasConflict) {
                 // Time Overlap check
                 for (int j = 0; j < chromosome.length; j++) {
                     if (i != j && chromosome[i] == chromosome[j]) {

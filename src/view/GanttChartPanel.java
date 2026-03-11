@@ -126,14 +126,14 @@ public class GanttChartPanel extends JPanel {
             String sizeCategory;
             if (gateNum <= 15)
                 sizeCategory = "[SMALL]";
-            else if (gateNum <= 25)
+            else if (gateNum <= 24)
                 sizeCategory = "[LARGE]";
             else
                 sizeCategory = "[JUMBO]";
 
             boolean isInt = ((gateNum >= 11 && gateNum <= 15) ||
-                    (gateNum >= 21 && gateNum <= 25) ||
-                    (gateNum >= 26 && gateNum <= 30));
+                    (gateNum >= 21 && gateNum <= 24) ||
+                    (gateNum >= 25 && gateNum <= 30));
             String intStatus = isInt ? "(INT)" : "(DOM)";
             sizeCategory += " " + intStatus;
 
@@ -259,8 +259,8 @@ public class GanttChartPanel extends JPanel {
                 int textX = xStart + (blockWidth - mediumWidth) / 2;
                 int textY = yPos + (blockHeight / 2) + (fontHeight / 2) - 2;
                 g2d.drawString(singleLineMedium, textX, textY);
-            } else if (Math.max(codeWidth, timeWidth) + 4 < blockWidth && blockHeight > fontHeight * 2) {
-                // Two lines: Code on top, Time on bottom
+            } else {
+                // Two lines: Code on top, Time on bottom (Forced for all other sizes)
                 int textXCode = xStart + (blockWidth - codeWidth) / 2;
                 int textXTime = xStart + (blockWidth - timeWidth) / 2;
 
@@ -269,11 +269,6 @@ public class GanttChartPanel extends JPanel {
 
                 g2d.drawString(flight.flightCode, textXCode, textYCode);
                 g2d.drawString(timeStr, textXTime, textYTime);
-            } else if (codeWidth + 4 < blockWidth) {
-                // Fallback: Just code
-                int textX = xStart + (blockWidth - codeWidth) / 2;
-                int textY = yPos + (blockHeight / 2) + (fontHeight / 2) - 2;
-                g2d.drawString(flight.flightCode, textX, textY);
             }
         }
     }

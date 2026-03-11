@@ -40,6 +40,12 @@ public class GreedyInitializer {
     public Map<Integer, Integer> generateInitialSolution() {
         Map<Integer, Integer> schedule = new HashMap<>();
         FlightMinHeap heap = new FlightMinHeap(flightRepo.getAllFlights().size() + 10);
+        
+        // Map to track when each gate will become available again
+        Map<Integer, Integer> gateFreeAt = new HashMap<>();
+        for (Gate g : gates) {
+            gateFreeAt.put(g.getId(), 0);
+        }
 
         // Step 1: Load all flights into heap - O(N log N)
         for (Flight f : flightRepo.getAllFlights()) {
@@ -49,25 +55,42 @@ public class GreedyInitializer {
         // Step 2: Process heap
         while (!heap.isEmpty()) {
             Flight f = heap.extractMin();
-
-            // Step 3: Find First Fit Gate - O(G)
-            // Note: This logic is simplified. It only checks static size compatibility.
-            // It does NOT yet check time overlap (requires Interval Tree or checking
-            // schedule map).
-            // For the "Greedy Initializer" requirement in this phase, we act as if we are
-            // just finding A spot.
-            // In a real scheduler, we would check time availability.
-            // Requirement says: "Find the first gate that fits the size constraint...
-            // (simple availability)"
-
+            boolean assigned = false;
+            // First Priority: Try to find an exact size match to prevent wasting Jumbo gates on Small planes!
             for (Gate g : gates) {
-                if (canPark(g, f)) {
-                    // Assign
-                    schedule.put(f.getId(), g.getId());
-                    // In a full implementation, we would mark the gate as occupied for this time
-                    // slot.
-                    // Here we just pick the first valid one.
-                    break;
+                if (canParkExact(g, f)) {
+                    int freeTime = gateFreeAt.get(g.getId());
+                    if (freeTime <= f.getArrivalTime()) {
+                        schedule.put(f.getId(), g.getId());
+                        gateFreeAt.put(g.getId(), f.getDepartureTime() + 15);
+                        assigned = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Second Priority: Fall back to allowing spillover into larger gates if the exact ones are busy
+            if (!assigned) {
+                for (Gate g : gates) {
+                    if (canPark(g, f)) {
+                        int freeTime = gateFreeAt.get(g.getId());
+                        if (freeTime <= f.getArrivalTime()) {
+                            schedule.put(f.getId(), g.getId());
+                            gateFreeAt.put(g.getId(), f.getDepartureTime() + 15);
+                            assigned = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Third Priority: If it couldn't be scheduled cleanly at all, force it into an exact matching gate (letting the GA fix the overlap)
+            if (!assigned) {
+                for (Gate g : gates) {
+                    if (canParkExact(g, f)) {
+                        schedule.put(f.getId(), g.getId());
+                        break;
+                    }
                 }
             }
         }
@@ -76,7 +99,7 @@ public class GreedyInitializer {
     }
 
     private boolean canPark(Gate g, Flight f) {
-        // Size Check
+        // Size and International Check
         boolean sizeFits = false;
         if (g.getSize() == GateSize.SIZE_JUMBO) {
             sizeFits = true; // Jumbo fits everything
@@ -85,8 +108,17 @@ public class GreedyInitializer {
         } else if (g.getSize() == GateSize.SIZE_SMALL) {
             sizeFits = (f.getType() == PlaneType.SMALL_BODY);
         }
+        
+        return sizeFits && (f.isInternational() == g.isInternational());
+    }
 
-        return sizeFits;
+    private boolean canParkExact(Gate g, Flight f) {
+        boolean exactMatch = false;
+        if (g.getSize() == GateSize.SIZE_JUMBO && f.getType() == PlaneType.JUMBO_BODY) exactMatch = true;
+        if (g.getSize() == GateSize.SIZE_LARGE && f.getType() == PlaneType.LARGE_BODY) exactMatch = true;
+        if (g.getSize() == GateSize.SIZE_SMALL && f.getType() == PlaneType.SMALL_BODY) exactMatch = true;
+        
+        return exactMatch && (f.isInternational() == g.isInternational());
     }
 
     /**
