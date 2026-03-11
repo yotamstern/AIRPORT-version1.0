@@ -361,6 +361,7 @@ public class GeneticEngine {
         graph.connectGates(gates.get(0), gates.get(1));
         graph.connectGates(gates.get(1), gates.get(2));
 
+        graph.initializeDistanceMatrix();
         System.out.println("Starting Genetic Algorithm...");
         GeneticEngine engine = new GeneticEngine(repo, gates, graph);
         // You can use test tuning here if wanted:

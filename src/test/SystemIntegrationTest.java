@@ -76,7 +76,8 @@ public class SystemIntegrationTest {
             // 2. Verify Spatial Engine
             // ==========================================
             System.out.println("\n[TEST] Verifying Spatial Engine...");
-            double dist = graph.getPathWeight(1, 5);
+            graph.initializeDistanceMatrix();
+            double dist = graph.getShortestDistance(1, 5);
             System.out.println("[TEST] Distance Gate 1 -> Gate 5: " + dist);
             if (Math.abs(dist - 40.0) < 0.001)
                 System.out.println("[PASS] Distance Correct.");

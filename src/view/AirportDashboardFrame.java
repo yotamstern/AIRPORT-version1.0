@@ -469,6 +469,8 @@ public class AirportDashboardFrame extends JFrame {
                     graph.connectGates(gates.get(i), gates.get(i + 1));
                 }
 
+                graph.initializeDistanceMatrix();
+
                 // Generate a fresh set of flights to the CSV file
                 model.utils.FlightCSVGenerator.main(new String[0]);
                 

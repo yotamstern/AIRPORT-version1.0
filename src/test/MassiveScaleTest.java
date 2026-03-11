@@ -98,6 +98,9 @@ public class MassiveScaleTest {
         System.out.println("[MASSIVE SCALE TEST] Repository and constraints prepared.");
         System.out.println("[MASSIVE SCALE TEST] Starting Genetic Engine execution...");
 
+        // Initialize the shortest paths mapping using Floyd-Warshall
+        graph.initializeDistanceMatrix();
+
         // 3. Execution & Benchmarking (Pop = 200, Gens = 500)
         // With O(N log N) optimizations, lower population provides more generation
         // iterations faster

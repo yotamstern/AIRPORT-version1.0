@@ -145,8 +145,8 @@ public class FitnessEvaluator {
         // Soft Penalty 1: Walking Distance (-0.1 per point of distance)
         double totalWalkingDistance = 0;
         for (int gateId : chromosome) {
-            double dist = graph.getPathWeight(1, gateId); // Distance from Entrance (Gate 1)
-            if (dist != -1) {
+            double dist = graph.getShortestDistance(1, gateId); // Distance from Entrance (Gate 1)
+            if (dist != Double.POSITIVE_INFINITY) {
                 totalWalkingDistance += dist;
             } else {
                 totalWalkingDistance += 1000; // Large penalty for unreachable gate

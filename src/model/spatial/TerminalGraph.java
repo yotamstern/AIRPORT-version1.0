@@ -8,11 +8,10 @@ import java.util.*;
 /**
  * Represents the layout of the airport terminal as a graph.
  * Uses an Adjacency List to store connections between gates.
- * Implements Dijkstra's Algorithm to calculate shortest walking times.
+ * Implements the Floyd-Warshall Algorithm to calculate shortest walking times.
  *
  * <p>
- * <b>Space Complexity:</b> O(V + E) where V is the number of gates and E is the
- * number of connections.
+ * <b>Space Complexity:</b> O(V^2) for distance matrix.
  * The adjacency list stores each gate once and each connection twice
  * (undirected).
  * </p>
@@ -21,12 +20,10 @@ public class TerminalGraph {
     // Adjacency List: Gate ID -> List of Edges
     private Map<Integer, List<Edge>> adjList;
 
-    // Caching map: "GateId1-GateId2" -> Distance
-    private Map<String, Double> distanceCache;
+    private double[][] distanceMatrix;
 
     public TerminalGraph() {
         this.adjList = new HashMap<>();
-        this.distanceCache = new HashMap<>();
     }
 
     /**
@@ -63,112 +60,50 @@ public class TerminalGraph {
         adjList.get(g2.getId()).add(new Edge(g1.getId(), weight));
     }
 
-    /**
-     * Pre-computes all shortest paths between every unique pair of gates.
-     * Caches the results in distanceCache for O(1) lookups during GA evaluations.
-     * 
-     * @param allGates The list of all gates in the terminal.
-     */
-    public void precalculateAllDistances(List<Gate> allGates) {
-        System.out
-                .println("[TerminalGraph] Pre-calculating and caching distances for " + allGates.size() + " gates...");
-        distanceCache.clear();
-
-        for (int i = 0; i < allGates.size(); i++) {
-            for (int j = 0; j < allGates.size(); j++) {
-                int gateId1 = allGates.get(i).getId();
-                int gateId2 = allGates.get(j).getId();
-
-                // If they are the same gate, distance is 0.
-                if (gateId1 == gateId2) {
-                    distanceCache.put(gateId1 + "-" + gateId2, 0.0);
-                    continue;
-                }
-
-                // Only compute if we haven't already (since graph is undirected, a->b is same
-                // as b->a)
-                String key = gateId1 + "-" + gateId2;
-                if (!distanceCache.containsKey(key)) {
-                    double dist = runDijkstra(gateId1, gateId2);
-                    distanceCache.put(key, dist);
-                    // Store reverse automatically
-                    distanceCache.put(gateId2 + "-" + gateId1, dist);
-                }
-            }
-        }
-        System.out.println("[TerminalGraph] Pre-calculation complete. Cached " + distanceCache.size() + " paths.");
-    }
-
-    /**
-     * O(1) lookup for distance between two gates.
-     * Must call precalculateAllDistances() first for large-scale performance.
-     */
-    public double getPathWeight(int startGateId, int endGateId) {
-        String key = startGateId + "-" + endGateId;
-        if (distanceCache.containsKey(key)) {
-            return distanceCache.get(key);
-        }
-        // Fallback penalty if not cached
-        return 9999.0;
-    }
-
-    /**
-     * Internal Isolated Dijkstra's Algorithm logic.
-     */
-    private double runDijkstra(int startGateId, int endGateId) {
-        if (!adjList.containsKey(startGateId) || !adjList.containsKey(endGateId)) {
-            return -1;
-        }
-
-        PriorityQueue<Node> pq = new PriorityQueue<>(Comparator.comparingDouble(node -> node.distance));
-        Map<Integer, Double> distances = new HashMap<>();
-
+    public void initializeDistanceMatrix() {
+        int maxGateId = 0;
         for (Integer id : adjList.keySet()) {
-            distances.put(id, Double.MAX_VALUE);
+            if (id > maxGateId) {
+                maxGateId = id;
+            }
         }
 
-        distances.put(startGateId, 0.0);
-        pq.add(new Node(startGateId, 0.0));
+        int n = maxGateId + 1;
+        distanceMatrix = new double[n][n];
 
-        Set<Integer> visited = new HashSet<>();
-
-        while (!pq.isEmpty()) {
-            Node current = pq.poll();
-            int currentId = current.id;
-
-            if (currentId == endGateId) {
-                return distances.get(endGateId);
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if (i == j) {
+                    distanceMatrix[i][j] = 0.0;
+                } else {
+                    distanceMatrix[i][j] = Double.POSITIVE_INFINITY;
+                }
             }
+        }
 
-            if (visited.contains(currentId))
-                continue;
-            visited.add(currentId);
+        for (Map.Entry<Integer, List<Edge>> entry : adjList.entrySet()) {
+            int u = entry.getKey();
+            for (Edge edge : entry.getValue()) {
+                int v = edge.getTargetGateId();
+                if (u < n && v < n) {
+                    distanceMatrix[u][v] = edge.getWeight();
+                }
+            }
+        }
 
-            if (adjList.containsKey(currentId)) {
-                for (Edge edge : adjList.get(currentId)) {
-                    int neighborId = edge.getTargetGateId();
-                    double newDist = distances.get(currentId) + edge.getWeight();
-
-                    if (newDist < distances.get(neighborId)) {
-                        distances.put(neighborId, newDist);
-                        pq.add(new Node(neighborId, newDist));
+        for (int k = 0; k < n; k++) {
+            for (int i = 0; i < n; i++) {
+                for (int j = 0; j < n; j++) {
+                    if (distanceMatrix[i][j] > distanceMatrix[i][k] + distanceMatrix[k][j]) {
+                        distanceMatrix[i][j] = distanceMatrix[i][k] + distanceMatrix[k][j];
                     }
                 }
             }
         }
-
-        return -1; // Unreachable
     }
 
-    // Helper class for Dijkstra's PriorityQueue
-    private static class Node {
-        int id;
-        double distance;
-
-        public Node(int id, double distance) {
-            this.id = id;
-            this.distance = distance;
-        }
+    public double getShortestDistance(int arrivalGateId, int departureGateId) {
+        return distanceMatrix[arrivalGateId][departureGateId];
     }
 
     /**
@@ -208,30 +143,29 @@ public class TerminalGraph {
 
         System.out.println("Graph Test Harness Started...");
 
-        List<Gate> allGates = new ArrayList<>(Arrays.asList(g1, g2, g3, g4));
-        graph.precalculateAllDistances(allGates);
+        graph.initializeDistanceMatrix();
 
         // Test 1: Direct connection A -> B
-        double dist1 = graph.getPathWeight(1, 2);
+        double dist1 = graph.getShortestDistance(1, 2);
         System.out.println("Distance Gate 1 -> Gate 2 (Expected 10.0): " + dist1);
 
         // Test 2: Indirect connection A -> C -> D (5+10 = 15) vs A -> B -> D (10+5 =
         // 15)
-        double dist2 = graph.getPathWeight(1, 4);
+        double dist2 = graph.getShortestDistance(1, 4);
         System.out.println("Distance Gate 1 -> Gate 4 (Expected 15.0): " + dist2);
 
-        double dist4 = graph.getPathWeight(2, 4);
+        double dist4 = graph.getShortestDistance(2, 4);
         System.out.println("Distance Gate 2 -> Gate 4: " + dist4);
 
         // Add a shortcut diagonal A -> D
         // sqrt(10^2 + 5^2) = sqrt(125) approx 11.18
         graph.connectGates(g1, g4);
-        graph.precalculateAllDistances(allGates); // Re-calculate to pick up new edges
-        double dist3 = graph.getPathWeight(1, 4);
+        graph.initializeDistanceMatrix(); // Re-calculate to pick up new edges
+        double dist3 = graph.getShortestDistance(1, 4);
         System.out.println("Distance Gate 1 -> Gate 4 with Diagonal (Expected ~11.18): " + dist3);
 
         if (Math.abs(dist1 - 10.0) < 0.001 && Math.abs(dist3 - 11.1803) < 0.001) {
-            System.out.println("SUCCESS: Dijkstra algorithm verified.");
+            System.out.println("SUCCESS: Floyd-Warshall algorithm verified.");
         } else {
             System.out.println("FAILURE: Calculations incorrect.");
         }
