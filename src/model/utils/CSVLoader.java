@@ -1,6 +1,8 @@
 package model.utils;
 
 import model.Flight;
+import model.FlightRepository;
+import model.Transfer;
 import model.enums.PlaneType;
 
 import java.io.BufferedReader;
@@ -11,8 +13,7 @@ import java.util.Map;
 
 public class CSVLoader {
 
-    public static Map<String, Flight> loadFlights(String filePath) {
-        Map<String, Flight> flightsMap = new HashMap<>();
+    public static void loadFlights(String filePath, FlightRepository repo) {
         String line = "";
         String cvsSplitBy = ",";
 
@@ -21,6 +22,12 @@ public class CSVLoader {
             br.readLine();
 
             int idCounter = 1;
+
+            // Structure to hold transfer strings to be processed after flights are created
+            // Map<FlightId, List of transfer strings>
+            Map<Integer, String[]> pendingTransfers = new HashMap<>();
+            // Maintain a code -> id mapping to resolve transfers
+            Map<String, Integer> flightCodeToId = new HashMap<>();
 
             while ((line = br.readLine()) != null) {
                 String[] data = line.split(cvsSplitBy);
@@ -39,17 +46,44 @@ public class CSVLoader {
                         // Set the correct service duration based on the parsed departure - arrival
                         flight.setServiceDuration(departureMinute - arrivalMinute);
 
-                        flightsMap.put(flightCode, flight);
+                        repo.addFlight(flight);
+                        flightCodeToId.put(flightCode, flight.getId());
+
+                        // If there is transfer data (6th column)
+                        if (data.length >= 6 && !data[5].trim().isEmpty()) {
+                            String[] transferData = data[5].trim().split(";");
+                            pendingTransfers.put(flight.getId(), transferData);
+                        }
 
                     } catch (IllegalArgumentException e) {
                         System.err.println("Skipping invalid line: " + line + " Error: " + e.getMessage());
                     }
                 }
             }
+
+            // Second pass: Resolve transfers now that all flights have IDs
+            for (Map.Entry<Integer, String[]> entry : pendingTransfers.entrySet()) {
+                int fromFlightId = entry.getKey();
+                for (String tString : entry.getValue()) {
+                    String[] tData = tString.split(":");
+                    if (tData.length == 2) {
+                        String targetFlightCode = tData[0].trim();
+                        try {
+                            int numPax = Integer.parseInt(tData[1].trim());
+                            Integer toFlightId = flightCodeToId.get(targetFlightCode);
+                            if (toFlightId != null) {
+                                repo.addTransfer(new Transfer(fromFlightId, toFlightId, numPax));
+                            } else {
+                                System.err.println("Warning: Transfer target flight code not found: " + targetFlightCode);
+                            }
+                        } catch (NumberFormatException e) {
+                            System.err.println("Warning: Invalid passenger count in transfer data: " + tString);
+                        }
+                    }
+                }
+            }
         } catch (IOException e) {
             System.err.println("Error reading CSV file: " + e.getMessage());
         }
-
-        return flightsMap;
     }
 }

@@ -3,6 +3,7 @@ package model.algo.genetic;
 import model.Flight;
 import model.FlightRepository;
 import model.Gate;
+import model.Transfer;
 import model.enums.GateSize;
 import model.enums.PlaneType;
 import model.spatial.TerminalGraph;
@@ -10,8 +11,12 @@ import model.spatial.TerminalGraph;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 
 /**
  * Component responsible for calculating the fitness score of a schedule.
@@ -29,6 +34,7 @@ public class FitnessEvaluator {
     private static final double HARD_PENALTY_INT = 50000.0;
     private static final double SOFT_PENALTY_WALK = 0.0;// 0.1
     private static final double SOFT_PENALTY_BUFFER = 0.0;// 50.0
+    private static final double SOFT_PENALTY_TRANSFER = 0.1;
     private static final double SOFT_PENALTY_WASTE = 2000.0;
 
     public FitnessEvaluator(TerminalGraph graph, FlightRepository repo, List<Gate> gates) {
@@ -53,6 +59,37 @@ public class FitnessEvaluator {
             if (gateSize == GateSize.SIZE_JUMBO) return 1;
         }
         return 0;
+    }
+
+    /**
+     * Breadth-First Search (BFS) to count disconnected clusters of planes.
+     * Used for grouping flights from the same airline together physically.
+     */
+    private int countConnectedComponents(List<Integer> activeGates, TerminalGraph graph) {
+        Set<Integer> targetGates = new HashSet<>(activeGates);
+        Set<Integer> visited = new HashSet<>();
+        int componentCount = 0;
+
+        for (Integer startGate : targetGates) {
+            if (!visited.contains(startGate)) {
+                componentCount++;
+                Queue<Integer> queue = new LinkedList<>();
+                queue.add(startGate);
+                visited.add(startGate);
+
+                while (!queue.isEmpty()) {
+                    int currentGate = queue.poll();
+                    
+                    for (Integer neighbor : graph.getNeighbors(currentGate)) {
+                        if (targetGates.contains(neighbor) && !visited.contains(neighbor)) {
+                            visited.add(neighbor);
+                            queue.add(neighbor);
+                        }
+                    }
+                }
+            }
+        }
+        return componentCount;
     }
 
     /**
@@ -85,12 +122,16 @@ public class FitnessEvaluator {
 
         // Group flights by assigned gate
         Map<Integer, List<Flight>> gateAssignments = new HashMap<>();
+        Map<Integer, Integer> flightIdToGateMap = new HashMap<>();
+
         for (int i = 0; i < chromosome.length; i++) {
             int gateId = chromosome[i];
             Flight f = flights.get(i);
 
             gateAssignments.putIfAbsent(gateId, new ArrayList<>());
             gateAssignments.get(gateId).add(f);
+            
+            flightIdToGateMap.put(f.getId(), gateId);
 
             // Hard Penalty 2: Size Mismatch (-50000 points)
             Gate gate = gateMap.get(gateId);
@@ -153,6 +194,52 @@ public class FitnessEvaluator {
             }
         }
         softPenalties += totalWalkingDistance * SOFT_PENALTY_WALK;
+
+        // Soft Penalty: Transfer Walking Distance
+        double totalTransferDistance = 0;
+        if (repo.getAllTransfers() != null) {
+            for (Transfer transfer : repo.getAllTransfers()) {
+                Integer fromGateId = flightIdToGateMap.get(transfer.getFromFlightId());
+                Integer toGateId = flightIdToGateMap.get(transfer.getToFlightId());
+                
+                if (fromGateId != null && toGateId != null) {
+                    double dist = graph.getShortestDistance(fromGateId, toGateId);
+                    if (dist != Double.POSITIVE_INFINITY) {
+                        // Weight the distance by the number of transferring passengers
+                        totalTransferDistance += dist * transfer.getNumPassengers();
+                    } else {
+                        totalTransferDistance += 1000 * transfer.getNumPassengers(); // Unreachable penalty
+                    }
+                }
+            }
+        }
+        softPenalties += totalTransferDistance * SOFT_PENALTY_TRANSFER;
+
+        // Soft Penalty: Airline Clustering (Connected Components)
+        Map<String, List<Integer>> airlineGatesMap = new HashMap<>();
+
+        for (int i = 0; i < chromosome.length; i++) {
+            int gateId = chromosome[i];
+            Flight f = flights.get(i);
+            
+            // Extract the 2-letter airline prefix (e.g., "UA" from "UA-123")
+            // Make sure the split array holds at least 2 elements so it doesn't crash on bad data
+            String[] parts = f.getFlightCode().split("-");
+            String airlineCode = parts.length > 1 ? parts[0] : f.getFlightCode().substring(0, Math.min(2, f.getFlightCode().length()));
+            
+            airlineGatesMap.computeIfAbsent(airlineCode, k -> new ArrayList<>()).add(gateId);
+        }
+
+        for (Map.Entry<String, List<Integer>> entry : airlineGatesMap.entrySet()) {
+            List<Integer> gates = entry.getValue();
+            if (gates.size() > 1) {
+                int components = countConnectedComponents(gates, graph);
+                if (components > 1) {
+                    // Apply a penalty of 1500 for every distinct, disconnected cluster beyond the first
+                    softPenalties += ((components - 1) * 10000.0);
+                }
+            }
+        }
 
         double score = reward - hardPenalties - softPenalties;
         return score;

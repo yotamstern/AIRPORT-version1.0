@@ -60,6 +60,24 @@ public class TerminalGraph {
         adjList.get(g2.getId()).add(new Edge(g1.getId(), weight));
     }
 
+    /**
+     * Retrieves the IDs of all neighboring gates.
+     * Required for Breadth-First Search (BFS) algorithms.
+     *
+     * @param gateId The ID of the central gate.
+     * @return A list of connected gate IDs.
+     */
+    public List<Integer> getNeighbors(int gateId) {
+        List<Integer> neighbors = new ArrayList<>();
+        List<Edge> edges = adjList.get(gateId);
+        if (edges != null) {
+            for (Edge edge : edges) {
+                neighbors.add(edge.getTargetGateId());
+            }
+        }
+        return neighbors;
+    }
+
     public void initializeDistanceMatrix() {
         int maxGateId = 0;
         for (Integer id : adjList.keySet()) {

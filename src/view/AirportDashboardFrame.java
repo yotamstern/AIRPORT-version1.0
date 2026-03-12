@@ -66,43 +66,6 @@ public class AirportDashboardFrame extends JFrame {
     }
 
     /**
-     * 1. Left Navigation Bar (West)
-     */
-    private JPanel createLeftNavigation() {
-        JPanel leftNav = new JPanel();
-        leftNav.setLayout(new BoxLayout(leftNav, BoxLayout.Y_AXIS));
-        leftNav.setBackground(BG_MAIN);
-        leftNav.setPreferredSize(new Dimension(80, 0));
-        leftNav.setBorder(new EmptyBorder(30, 0, 0, 0)); // Top margin for icons
-
-        String[] icons = { "🏠", "✈️ ", "📊", "⚙️ " };
-        String[] tooltips = { "Dashboard", "Flight Schedule", "Analytics", "Settings" };
-
-        for (int i = 0; i < icons.length; i++) {
-            JLabel lblIcon = new JLabel(icons[i], SwingConstants.CENTER);
-            lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 26));
-            lblIcon.setForeground(TEXT_PRIMARY);
-            lblIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
-            lblIcon.setToolTipText(tooltips[i]);
-            lblIcon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-
-            if (i == 1 || i == 3) {
-                lblIcon.setBorder(new EmptyBorder(0, 14, 0, 0));
-            }
-
-            Dimension iconSize = new Dimension(90, 50);
-            lblIcon.setPreferredSize(iconSize);
-            lblIcon.setMaximumSize(iconSize);
-            lblIcon.setMinimumSize(iconSize);
-
-            leftNav.add(lblIcon);
-            leftNav.add(Box.createVerticalStrut(20)); // Vertical spacing
-        }
-
-        return leftNav;
-    }
-
-    /**
      * 2. Right Sidebar (East - RightSidebarPanel)
      */
     private JPanel createRightSidebar() {
@@ -147,15 +110,35 @@ public class AirportDashboardFrame extends JFrame {
 
     private JPanel createLegendPanel() {
         JPanel legendPanel = new JPanel();
-        legendPanel.setLayout(new GridLayout(3, 1, 0, 5));
+        legendPanel.setLayout(new BoxLayout(legendPanel, BoxLayout.Y_AXIS));
         legendPanel.setBackground(BG_PANEL);
-        legendPanel.setBorder(createStyledTitledBorder("Aircraft Legend"));
+        legendPanel.setBorder(createStyledTitledBorder("Aircraft & Airline Legend"));
 
-        legendPanel.add(createLegendRow("Jumbo Body", new Color(59, 130, 246))); // Blue
-        legendPanel.add(createLegendRow("Large Body", new Color(16, 185, 129))); // Green
-        legendPanel.add(createLegendRow("Small Body", new Color(234, 179, 8))); // Yellow
+        // Aircraft Colors
+        JPanel colorsPanel = new JPanel(new GridLayout(3, 1, 0, 5));
+        colorsPanel.setBackground(BG_PANEL);
+        colorsPanel.add(createLegendRow("Jumbo Body", new Color(59, 130, 246))); // Blue
+        colorsPanel.add(createLegendRow("Large Body", new Color(16, 185, 129))); // Green
+        colorsPanel.add(createLegendRow("Small Body", new Color(234, 179, 8))); // Yellow
+        colorsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        legendPanel.setMaximumSize(new Dimension(250, 150));
+        // Airline Codes
+        JLabel airlineLabel = new JLabel("<html><b>Airlines:</b><br/>" +
+                "LY - El Al<br/>" +
+                "DL - Delta<br/>" +
+                "LH - Lufthansa<br/>" +
+                "UA - United<br/>" +
+                "BA - British Airways</html>");
+        airlineLabel.setForeground(TEXT_SECONDARY);
+        airlineLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        airlineLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        airlineLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        legendPanel.add(colorsPanel);
+        legendPanel.add(airlineLabel);
+
+        legendPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        legendPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 250));
         return legendPanel;
     }
 
@@ -473,11 +456,8 @@ public class AirportDashboardFrame extends JFrame {
                 // Generate a fresh set of flights to the CSV file
                 model.utils.FlightCSVGenerator.main(new String[0]);
                 
-                // Load flights from the generated CSV file
-                Map<String, Flight> loadedFlights = model.utils.CSVLoader.loadFlights("flights.csv");
-                for (Flight f : loadedFlights.values()) {
-                    repo.addFlight(f);
-                }
+                // Load flights from the generated CSV file directly into the repository
+                model.utils.CSVLoader.loadFlights("flights.csv", repo);
 
                 currentEngine = new GeneticEngine(repo, gates, graph);
                 currentEngine.setParameters(100, 0.05, 500); // Massive constraints limit for fast UI response

@@ -11,10 +11,11 @@ public class FlightCSVGenerator {
         int numFlights = 250;
         Random rand = new Random();
         boolean isInternational;
+        String[] airlines = {"LY", "DL", "LH", "UA", "BA"};
 
         try (FileWriter writer = new FileWriter(filename)) {
             // Write CSV header
-            writer.write("FlightCode,PlaneSize,IsInternational,ArrivalMinute,DepartureMinute\n");
+            writer.write("FlightCode,PlaneSize,IsInternational,ArrivalMinute,DepartureMinute,Transfers\n");
 
             // Calculate exact quotas based on 250 flights
             int numSmallDom = (int) (numFlights * 0.50 * 0.66); // 15 Small Gates * 66% Dom = ~83
@@ -37,13 +38,19 @@ public class FlightCSVGenerator {
             // Shuffle the specs so sizes are randomly distributed throughout the day
             java.util.Collections.shuffle(flightSpecs, rand);
 
-            // Time distribution logic (spread evenly over 1020 mins to prevent mathematical rush hours)
             int totalMinutes = 1380 - 360; // 17 hours
             double minutesPerFlight = (double) totalMinutes / numFlights;
 
+            // Pre-generate all valid FlightCodes first so Transfers can reference them
+            String[] generatedCodes = new String[numFlights];
             for (int i = 0; i < numFlights; i++) {
-                // Generate Flight Code (FL-001 to FL-250)
-                String flightCode = String.format("FL-%03d", i + 1);
+                String airline = airlines[rand.nextInt(airlines.length)];
+                generatedCodes[i] = String.format("%s-%03d", airline, i + 1);
+            }
+
+            for (int i = 0; i < numFlights; i++) {
+                // Generate Flight Code with Airline Prefix (e.g., UA-001)
+                String flightCode = generatedCodes[i];
                 
                 String[] spec = flightSpecs.get(i);
                 String planeSize = spec[0];
@@ -65,9 +72,30 @@ public class FlightCSVGenerator {
                     departureMinute = arrivalMinute + 1;
                 }
 
+                // Generate random transfers for 50% of flights
+                StringBuilder transfersStr = new StringBuilder();
+                if (rand.nextDouble() < 0.5) {
+                    int numTransfers = rand.nextInt(3) + 1; // 1 to 3 connecting flights
+                    for (int j = 0; j < numTransfers; j++) {
+                        // Pick a random target flight that is NOT this flight
+                        int targetIdx = rand.nextInt(numFlights);
+                        while (targetIdx == i) {
+                            targetIdx = rand.nextInt(numFlights);
+                        }
+                        // get the exact target code from the pre-generated array
+                        String targetCode = generatedCodes[targetIdx];
+                        int numPax = rand.nextInt(20) + 1; // 1 to 20 passengers
+                        
+                        transfersStr.append(targetCode).append(":").append(numPax);
+                        if (j < numTransfers - 1) {
+                            transfersStr.append(";");
+                        }
+                    }
+                }
+
                 // Write the flight record to the CSV file
-                writer.write(String.format("%s,%s,%b,%d,%d\n",
-                        flightCode, planeSize, isInternational, arrivalMinute, departureMinute));
+                writer.write(String.format("%s,%s,%b,%d,%d,%s\n",
+                        flightCode, planeSize, isInternational, arrivalMinute, departureMinute, transfersStr.toString()));
             }
 
             System.out.println("Successfully generated " + numFlights + " flights to " + filename);
