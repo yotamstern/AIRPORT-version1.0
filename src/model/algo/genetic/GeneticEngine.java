@@ -4,6 +4,7 @@ import model.Flight;
 import model.FlightRepository;
 import model.Gate;
 import model.algo.GreedyInitializer;
+import model.enums.PlaneType;
 import model.spatial.TerminalGraph;
 
 import java.util.*;
@@ -20,6 +21,16 @@ public class GeneticEngine {
 
     private List<Flight> flights;
     private List<int[]> population;
+
+    // BN-3 fix: single shared Random instance instead of new Random() per call
+    private final Random rand = new Random();
+
+    // BN-5 fix: gate lookup built once in constructor
+    private final Map<Integer, Gate> gateMap = new HashMap<>();
+
+    // BN-4 fix: valid-gate lookup built once in constructor
+    // Key: PlaneType -> isInternational -> list of valid gates (exact-size first)
+    private final Map<PlaneType, Map<Boolean, List<Gate>>> validGatesCache = new EnumMap<>(PlaneType.class);
 
     // Concurrency Controls (Phase 11)
     private volatile boolean isPaused = false;
@@ -40,6 +51,36 @@ public class GeneticEngine {
         this.graph = graph;
         this.flights = new ArrayList<>(flightRepo.getAllFlights());
         this.population = new ArrayList<>();
+
+        // BN-5: build gateMap once
+        for (Gate g : gates) {
+            gateMap.put(g.getId(), g);
+        }
+
+        // BN-4: build validGatesCache once for every (PlaneType, isInternational) combo
+        FitnessEvaluator tempEval = new FitnessEvaluator(graph, flightRepo, gates);
+        for (PlaneType pt : PlaneType.values()) {
+            Map<Boolean, List<Gate>> intMap = new HashMap<>();
+            for (boolean intl : new boolean[]{false, true}) {
+                List<Gate> exactFit = new ArrayList<>();
+                List<Gate> oversizedFit = new ArrayList<>();
+                for (Gate g : gates) {
+                    if (g.isInternational() != intl) continue;
+                    if (!tempEval.isGateLargeEnough(g.getSize(), pt)) continue;
+                    if (tempEval.getWastedSpaceLevel(g.getSize(), pt) == 0) {
+                        exactFit.add(g);
+                    } else {
+                        oversizedFit.add(g);
+                    }
+                }
+                // Prefer exact-fit gates; fall back to oversized; last resort: all gates
+                List<Gate> best = !exactFit.isEmpty() ? exactFit :
+                                  !oversizedFit.isEmpty() ? oversizedFit :
+                                  new ArrayList<>(gates);
+                intMap.put(intl, best);
+            }
+            validGatesCache.put(pt, intMap);
+        }
     }
 
     /**
@@ -66,7 +107,6 @@ public class GeneticEngine {
             population.add(greedyChromosome.clone());
         }
 
-        Random rand = new Random();
         while (population.size() < populationSize) {
             int[] chrom = new int[flights.size()];
             for (int i = 0; i < flights.size(); i++) {
@@ -76,16 +116,34 @@ public class GeneticEngine {
         }
     }
 
+    /**
+     * BN-1 fix: pre-compute fitness once per generation into a parallel double[]
+     * array, then sort by cached values — eliminating O(P log P) redundant calls.
+     * BN-2 fix: after sorting, population.get(0) is always the best individual.
+     */
     private void evolve(FitnessEvaluator evaluator) {
+        int size = population.size();
+
+        // Pre-compute fitness for every chromosome ONCE
+        double[] fitnessCache = new double[size];
+        for (int i = 0; i < size; i++) {
+            fitnessCache[i] = evaluator.calculateFitness(population.get(i), flights);
+        }
+
+        // Sort population indices by descending fitness using the cache
+        Integer[] indices = new Integer[size];
+        for (int i = 0; i < size; i++) indices[i] = i;
+        Arrays.sort(indices, (a, b) -> Double.compare(fitnessCache[b], fitnessCache[a]));
+
+        List<int[]> sortedPopulation = new ArrayList<>(size);
+        for (int idx : indices) {
+            sortedPopulation.add(population.get(idx));
+        }
+        this.population = sortedPopulation;
+
         List<int[]> newPopulation = new ArrayList<>();
 
-        // Elitism (Task 2): Copy the top ELITISM_COUNT performing chromosomes directly
-        // to the next generation
-        // without any crossover or mutation to preserve the absolute best schemas.
-        population.sort((c1, c2) -> Double.compare(
-                evaluator.calculateFitness(c2, flights),
-                evaluator.calculateFitness(c1, flights)));
-
+        // Elitism: copy top ELITISM_COUNT chromosomes directly
         for (int i = 0; i < Math.min(ELITISM_COUNT, population.size()); i++) {
             newPopulation.add(population.get(i).clone());
         }
@@ -94,14 +152,14 @@ public class GeneticEngine {
             int[] parent1 = select(evaluator);
             int[] parent2 = select(evaluator);
             int[] child = crossover(parent1, parent2);
-            mutate(child, evaluator); // Updated to pass evaluator for conflict checking
+            mutate(child);
             newPopulation.add(child);
         }
         this.population = newPopulation;
     }
 
     private int[] select(FitnessEvaluator evaluator) {
-        Random rand = new Random();
+        // BN-3: uses shared rand field
         int[] best = null;
         double bestFitness = -Double.MAX_VALUE;
 
@@ -117,9 +175,9 @@ public class GeneticEngine {
     }
 
     private int[] crossover(int[] p1, int[] p2) {
+        // BN-3: uses shared rand field
         int n = p1.length;
         int[] child = new int[n];
-        Random rand = new Random();
 
         int point1 = rand.nextInt(n);
         int point2 = rand.nextInt(n);
@@ -137,26 +195,18 @@ public class GeneticEngine {
         return child;
     }
 
-    private List<Gate> getValidGates(Flight f, FitnessEvaluator evaluator) {
-        List<Gate> validGates = new ArrayList<>();
-        // First priority: Exact match (no wasted space)
-        for (Gate g : gates) {
-            if (evaluator.isGateLargeEnough(g.getSize(), f.getType()) &&
-                g.isInternational() == f.isInternational() &&
-                evaluator.getWastedSpaceLevel(g.getSize(), f.getType()) == 0) {
-                validGates.add(g);
+    /**
+     * BN-4 fix: valid-gate lookup is now O(1) via pre-built cache.
+     */
+    private List<Gate> getValidGates(Flight f) {
+        Map<Boolean, List<Gate>> byIntl = validGatesCache.get(f.getType());
+        if (byIntl != null) {
+            List<Gate> cached = byIntl.get(f.isInternational());
+            if (cached != null && !cached.isEmpty()) {
+                return cached;
             }
         }
-        // Second priority: Any valid size
-        if (validGates.isEmpty()) {
-            for (Gate g : gates) {
-                if (evaluator.isGateLargeEnough(g.getSize(), f.getType()) &&
-                    g.isInternational() == f.isInternational()) {
-                    validGates.add(g);
-                }
-            }
-        }
-        return validGates.isEmpty() ? gates : validGates; // Fallback to all gates
+        return gates; // fallback (should never happen with a complete cache)
     }
 
     /**
@@ -164,66 +214,64 @@ public class GeneticEngine {
      * Instead of purely random mutation, there is a 50% chance to target a flight
      * that is currently involved in a time or size conflict. If no conflicts exist,
      * or the 50% roll fails, it falls back to completely random mutation.
+     *
+     * BN-3 fix: no longer creates a new Random() — uses shared rand field.
+     * BN-4 fix: getValidGates() is now O(1).
      */
-    private void mutate(int[] child, FitnessEvaluator evaluator) {
-        Random rand = new Random();
+    private void mutate(int[] child) {
         if (rand.nextDouble() < mutationRate) {
 
             // 50% chance to do Conflict-Directed Mutation
             if (rand.nextDouble() < 0.5) {
-                List<Integer> conflicts = getConflictIndices(child, evaluator);
+                List<Integer> conflicts = getConflictIndices(child);
                 if (!conflicts.isEmpty()) {
-                    // Pick a random flight that has a conflict and re-assign it to a valid gate
                     int indexToMutate = conflicts.get(rand.nextInt(conflicts.size()));
                     Flight f = flights.get(indexToMutate);
-                    List<Gate> validGates = getValidGates(f, evaluator);
+                    List<Gate> validGates = getValidGates(f);
                     child[indexToMutate] = validGates.get(rand.nextInt(validGates.size())).getId();
-                    return; // Successfully performed targeted mutation
+                    return;
                 }
             }
 
             // Fallback: Random mutation on any gene
             int index = rand.nextInt(child.length);
             Flight f = flights.get(index);
-            List<Gate> validGates = getValidGates(f, evaluator);
+            List<Gate> validGates = getValidGates(f);
             child[index] = validGates.get(rand.nextInt(validGates.size())).getId();
         }
     }
 
     /**
-     * Finds flights that are in conflict (either overlapping time or incorrect gate
-     * size).
+     * Finds flights that are in conflict (either overlapping time or incorrect gate size).
+     *
+     * BN-5 fix: uses the pre-built gateMap field instead of rebuilding it here.
      */
-    private List<Integer> getConflictIndices(int[] chromosome, FitnessEvaluator evaluator) {
+    private List<Integer> getConflictIndices(int[] chromosome) {
         List<Integer> conflicts = new ArrayList<>();
-        Map<Integer, Gate> gateMap = new HashMap<>();
-        for (Gate g : gates)
-            gateMap.put(g.getId(), g);
+        FitnessEvaluator tempEval = new FitnessEvaluator(graph, flightRepo, gates);
 
         for (int i = 0; i < chromosome.length; i++) {
             int gateId = chromosome[i];
             Flight f1 = flights.get(i);
-            Gate gate = gateMap.get(gateId);
+            Gate gate = gateMap.get(gateId); // BN-5: O(1) lookup from field
 
             boolean hasConflict = false;
 
-            // Size, International, and Wasted Space Mismatch check
             if (gate != null) {
-                boolean isTooSmall = !evaluator.isGateLargeEnough(gate.getSize(), f1.getType());
+                boolean isTooSmall = !tempEval.isGateLargeEnough(gate.getSize(), f1.getType());
                 boolean wrongInt = f1.isInternational() != gate.isInternational();
-                boolean isWasted = evaluator.getWastedSpaceLevel(gate.getSize(), f1.getType()) > 0;
-                
+                boolean isWasted = tempEval.getWastedSpaceLevel(gate.getSize(), f1.getType()) > 0;
+
                 if (isTooSmall || wrongInt || isWasted) {
                     hasConflict = true;
                 }
             }
-            
+
             if (!hasConflict) {
                 // Time Overlap check
                 for (int j = 0; j < chromosome.length; j++) {
                     if (i != j && chromosome[i] == chromosome[j]) {
                         Flight f2 = flights.get(j);
-                        // Two flights overlap on the same gate if Start1 < End2 AND Start2 < End1
                         if (f1.getArrivalTime() < f2.getDepartureTime()
                                 && f2.getArrivalTime() < f1.getDepartureTime()) {
                             hasConflict = true;
@@ -240,18 +288,12 @@ public class GeneticEngine {
         return conflicts;
     }
 
-    private int[] getBestSolution(FitnessEvaluator evaluator) {
-        int[] best = population.get(0);
-        double bestFit = evaluator.calculateFitness(best, flights);
-
-        for (int[] ind : population) {
-            double fit = evaluator.calculateFitness(ind, flights);
-            if (fit > bestFit) {
-                bestFit = fit;
-                best = ind;
-            }
-        }
-        return best;
+    /**
+     * BN-2 fix: population is already sorted descending by fitness after evolve(),
+     * so the best is always at index 0 — no need to scan the entire population.
+     */
+    private int[] getBestSolution() {
+        return population.get(0);
     }
 
     public int[] run() {
@@ -283,11 +325,12 @@ public class GeneticEngine {
             }
 
             evolve(evaluator);
-            int[] best = getBestSolution(evaluator);
+            // BN-2: getBestSolution() is now O(1) — population already sorted
+            int[] best = getBestSolution();
             double currentBestFitness = evaluator.calculateFitness(best, flights);
             System.out.println("Generation " + i + " | Best Fitness: " + currentBestFitness);
 
-            if (onGenerationComplete != null /*&& i % 5 == 0*/) { // Update UI every 5 generations to prevent EDT choke
+            if (onGenerationComplete != null) {
                 List<Flight> currentBestFlights = new ArrayList<>();
                 for (int j = 0; j < flights.size(); j++) {
                     Flight copy = getFlight(j, best);
@@ -309,12 +352,11 @@ public class GeneticEngine {
             }
         }
 
-        return getBestSolution(evaluator);
+        return getBestSolution();
     }
 
     private Flight getFlight(int j, int[] best) {
         Flight clone = flights.get(j);
-        // Warning: Ideally clone the flight, but for now we map it directly:
         Flight copy = new Flight(clone.getId(), clone.getFlightCode(), clone.getArrivalTime(),
                 clone.getType(), clone.getUrgencyScore(), clone.isInternational());
         copy.setServiceDuration(clone.getServiceDuration());

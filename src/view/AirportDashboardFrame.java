@@ -318,7 +318,7 @@ public class AirportDashboardFrame extends JFrame {
             gateFlights.sort((f1, f2) -> Integer.compare(f1.getArrivalTime(), f2.getArrivalTime()));
             int lastEndTime = -1;
             java.util.Iterator<Flight> iter = gateFlights.iterator();
-            while(iter.hasNext()) {
+            while (iter.hasNext()) {
                 Flight f = iter.next();
                 if (f.getArrivalTime() < lastEndTime) {
                     f.setAssignedGate(null);
@@ -380,12 +380,8 @@ public class AirportDashboardFrame extends JFrame {
         lblTotalFlights.setText(String.valueOf(currentFlights.size()));
         lblAssigned.setText(String.valueOf(currentAssigned));
         lblHolding.setText(String.valueOf(currentHolding));
+        lblFitness.setText(String.format("%.0f", fitnessScore));
 
-        if (fitnessScore != -1) {
-            lblFitness.setText(String.format("%.0f", fitnessScore));
-        } else {
-            lblFitness.setText("Calculating...");
-        }
 
         if (currentGeneration != -1) {
             lblGeneration.setText(String.valueOf(currentGeneration));
@@ -455,7 +451,7 @@ public class AirportDashboardFrame extends JFrame {
 
                 // Generate a fresh set of flights to the CSV file
                 model.utils.FlightCSVGenerator.main(new String[0]);
-                
+
                 // Load flights from the generated CSV file directly into the repository
                 model.utils.CSVLoader.loadFlights("flights.csv", repo);
 

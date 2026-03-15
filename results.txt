@@ -1,0 +1,792 @@
+[MASSIVE SCALE TEST] Generating 500 flights and 30 gates...
+Flight FL-001 entered Planned State.
+Flight FL-002 entered Planned State.
+Flight FL-003 entered Planned State.
+Flight FL-004 entered Planned State.
+Flight FL-005 entered Planned State.
+Flight FL-006 entered Planned State.
+Flight FL-007 entered Planned State.
+Flight FL-008 entered Planned State.
+Flight FL-009 entered Planned State.
+Flight FL-010 entered Planned State.
+Flight FL-011 entered Planned State.
+Flight FL-012 entered Planned State.
+Flight FL-013 entered Planned State.
+Flight FL-014 entered Planned State.
+Flight FL-015 entered Planned State.
+Flight FL-016 entered Planned State.
+Flight FL-017 entered Planned State.
+Flight FL-018 entered Planned State.
+Flight FL-019 entered Planned State.
+Flight FL-020 entered Planned State.
+Flight FL-021 entered Planned State.
+Flight FL-022 entered Planned State.
+Flight FL-023 entered Planned State.
+Flight FL-024 entered Planned State.
+Flight FL-025 entered Planned State.
+Flight FL-026 entered Planned State.
+Flight FL-027 entered Planned State.
+Flight FL-028 entered Planned State.
+Flight FL-029 entered Planned State.
+Flight FL-030 entered Planned State.
+Flight FL-031 entered Planned State.
+Flight FL-032 entered Planned State.
+Flight FL-033 entered Planned State.
+Flight FL-034 entered Planned State.
+Flight FL-035 entered Planned State.
+Flight FL-036 entered Planned State.
+Flight FL-037 entered Planned State.
+Flight FL-038 entered Planned State.
+Flight FL-039 entered Planned State.
+Flight FL-040 entered Planned State.
+Flight FL-041 entered Planned State.
+Flight FL-042 entered Planned State.
+Flight FL-043 entered Planned State.
+Flight FL-044 entered Planned State.
+Flight FL-045 entered Planned State.
+Flight FL-046 entered Planned State.
+Flight FL-047 entered Planned State.
+Flight FL-048 entered Planned State.
+Flight FL-049 entered Planned State.
+Flight FL-050 entered Planned State.
+Flight FL-051 entered Planned State.
+Flight FL-052 entered Planned State.
+Flight FL-053 entered Planned State.
+Flight FL-054 entered Planned State.
+Flight FL-055 entered Planned State.
+Flight FL-056 entered Planned State.
+Flight FL-057 entered Planned State.
+Flight FL-058 entered Planned State.
+Flight FL-059 entered Planned State.
+Flight FL-060 entered Planned State.
+Flight FL-061 entered Planned State.
+Flight FL-062 entered Planned State.
+Flight FL-063 entered Planned State.
+Flight FL-064 entered Planned State.
+Flight FL-065 entered Planned State.
+Flight FL-066 entered Planned State.
+Flight FL-067 entered Planned State.
+Flight FL-068 entered Planned State.
+Flight FL-069 entered Planned State.
+Flight FL-070 entered Planned State.
+Flight FL-071 entered Planned State.
+Flight FL-072 entered Planned State.
+Flight FL-073 entered Planned State.
+Flight FL-074 entered Planned State.
+Flight FL-075 entered Planned State.
+Flight FL-076 entered Planned State.
+Flight FL-077 entered Planned State.
+Flight FL-078 entered Planned State.
+Flight FL-079 entered Planned State.
+Flight FL-080 entered Planned State.
+Flight FL-081 entered Planned State.
+Flight FL-082 entered Planned State.
+Flight FL-083 entered Planned State.
+Flight FL-084 entered Planned State.
+Flight FL-085 entered Planned State.
+Flight FL-086 entered Planned State.
+Flight FL-087 entered Planned State.
+Flight FL-088 entered Planned State.
+Flight FL-089 entered Planned State.
+Flight FL-090 entered Planned State.
+Flight FL-091 entered Planned State.
+Flight FL-092 entered Planned State.
+Flight FL-093 entered Planned State.
+Flight FL-094 entered Planned State.
+Flight FL-095 entered Planned State.
+Flight FL-096 entered Planned State.
+Flight FL-097 entered Planned State.
+Flight FL-098 entered Planned State.
+Flight FL-099 entered Planned State.
+Flight FL-100 entered Planned State.
+Flight FL-101 entered Planned State.
+Flight FL-102 entered Planned State.
+Flight FL-103 entered Planned State.
+Flight FL-104 entered Planned State.
+Flight FL-105 entered Planned State.
+Flight FL-106 entered Planned State.
+Flight FL-107 entered Planned State.
+Flight FL-108 entered Planned State.
+Flight FL-109 entered Planned State.
+Flight FL-110 entered Planned State.
+Flight FL-111 entered Planned State.
+Flight FL-112 entered Planned State.
+Flight FL-113 entered Planned State.
+Flight FL-114 entered Planned State.
+Flight FL-115 entered Planned State.
+Flight FL-116 entered Planned State.
+Flight FL-117 entered Planned State.
+Flight FL-118 entered Planned State.
+Flight FL-119 entered Planned State.
+Flight FL-120 entered Planned State.
+Flight FL-121 entered Planned State.
+Flight FL-122 entered Planned State.
+Flight FL-123 entered Planned State.
+Flight FL-124 entered Planned State.
+Flight FL-125 entered Planned State.
+Flight FL-126 entered Planned State.
+Flight FL-127 entered Planned State.
+Flight FL-128 entered Planned State.
+Flight FL-129 entered Planned State.
+Flight FL-130 entered Planned State.
+Flight FL-131 entered Planned State.
+Flight FL-132 entered Planned State.
+Flight FL-133 entered Planned State.
+Flight FL-134 entered Planned State.
+Flight FL-135 entered Planned State.
+Flight FL-136 entered Planned State.
+Flight FL-137 entered Planned State.
+Flight FL-138 entered Planned State.
+Flight FL-139 entered Planned State.
+Flight FL-140 entered Planned State.
+Flight FL-141 entered Planned State.
+Flight FL-142 entered Planned State.
+Flight FL-143 entered Planned State.
+Flight FL-144 entered Planned State.
+Flight FL-145 entered Planned State.
+Flight FL-146 entered Planned State.
+Flight FL-147 entered Planned State.
+Flight FL-148 entered Planned State.
+Flight FL-149 entered Planned State.
+Flight FL-150 entered Planned State.
+Flight FL-151 entered Planned State.
+Flight FL-152 entered Planned State.
+Flight FL-153 entered Planned State.
+Flight FL-154 entered Planned State.
+Flight FL-155 entered Planned State.
+Flight FL-156 entered Planned State.
+Flight FL-157 entered Planned State.
+Flight FL-158 entered Planned State.
+Flight FL-159 entered Planned State.
+Flight FL-160 entered Planned State.
+Flight FL-161 entered Planned State.
+Flight FL-162 entered Planned State.
+Flight FL-163 entered Planned State.
+Flight FL-164 entered Planned State.
+Flight FL-165 entered Planned State.
+Flight FL-166 entered Planned State.
+Flight FL-167 entered Planned State.
+Flight FL-168 entered Planned State.
+Flight FL-169 entered Planned State.
+Flight FL-170 entered Planned State.
+Flight FL-171 entered Planned State.
+Flight FL-172 entered Planned State.
+Flight FL-173 entered Planned State.
+Flight FL-174 entered Planned State.
+Flight FL-175 entered Planned State.
+Flight FL-176 entered Planned State.
+Flight FL-177 entered Planned State.
+Flight FL-178 entered Planned State.
+Flight FL-179 entered Planned State.
+Flight FL-180 entered Planned State.
+Flight FL-181 entered Planned State.
+Flight FL-182 entered Planned State.
+Flight FL-183 entered Planned State.
+Flight FL-184 entered Planned State.
+Flight FL-185 entered Planned State.
+Flight FL-186 entered Planned State.
+Flight FL-187 entered Planned State.
+Flight FL-188 entered Planned State.
+Flight FL-189 entered Planned State.
+Flight FL-190 entered Planned State.
+Flight FL-191 entered Planned State.
+Flight FL-192 entered Planned State.
+Flight FL-193 entered Planned State.
+Flight FL-194 entered Planned State.
+Flight FL-195 entered Planned State.
+Flight FL-196 entered Planned State.
+Flight FL-197 entered Planned State.
+Flight FL-198 entered Planned State.
+Flight FL-199 entered Planned State.
+Flight FL-200 entered Planned State.
+Flight FL-201 entered Planned State.
+Flight FL-202 entered Planned State.
+Flight FL-203 entered Planned State.
+Flight FL-204 entered Planned State.
+Flight FL-205 entered Planned State.
+Flight FL-206 entered Planned State.
+Flight FL-207 entered Planned State.
+Flight FL-208 entered Planned State.
+Flight FL-209 entered Planned State.
+Flight FL-210 entered Planned State.
+Flight FL-211 entered Planned State.
+Flight FL-212 entered Planned State.
+Flight FL-213 entered Planned State.
+Flight FL-214 entered Planned State.
+Flight FL-215 entered Planned State.
+Flight FL-216 entered Planned State.
+Flight FL-217 entered Planned State.
+Flight FL-218 entered Planned State.
+Flight FL-219 entered Planned State.
+Flight FL-220 entered Planned State.
+Flight FL-221 entered Planned State.
+Flight FL-222 entered Planned State.
+Flight FL-223 entered Planned State.
+Flight FL-224 entered Planned State.
+Flight FL-225 entered Planned State.
+Flight FL-226 entered Planned State.
+Flight FL-227 entered Planned State.
+Flight FL-228 entered Planned State.
+Flight FL-229 entered Planned State.
+Flight FL-230 entered Planned State.
+Flight FL-231 entered Planned State.
+Flight FL-232 entered Planned State.
+Flight FL-233 entered Planned State.
+Flight FL-234 entered Planned State.
+Flight FL-235 entered Planned State.
+Flight FL-236 entered Planned State.
+Flight FL-237 entered Planned State.
+Flight FL-238 entered Planned State.
+Flight FL-239 entered Planned State.
+Flight FL-240 entered Planned State.
+Flight FL-241 entered Planned State.
+Flight FL-242 entered Planned State.
+Flight FL-243 entered Planned State.
+Flight FL-244 entered Planned State.
+Flight FL-245 entered Planned State.
+Flight FL-246 entered Planned State.
+Flight FL-247 entered Planned State.
+Flight FL-248 entered Planned State.
+Flight FL-249 entered Planned State.
+Flight FL-250 entered Planned State.
+Flight FL-251 entered Planned State.
+Flight FL-252 entered Planned State.
+Flight FL-253 entered Planned State.
+Flight FL-254 entered Planned State.
+Flight FL-255 entered Planned State.
+Flight FL-256 entered Planned State.
+Flight FL-257 entered Planned State.
+Flight FL-258 entered Planned State.
+Flight FL-259 entered Planned State.
+Flight FL-260 entered Planned State.
+Flight FL-261 entered Planned State.
+Flight FL-262 entered Planned State.
+Flight FL-263 entered Planned State.
+Flight FL-264 entered Planned State.
+Flight FL-265 entered Planned State.
+Flight FL-266 entered Planned State.
+Flight FL-267 entered Planned State.
+Flight FL-268 entered Planned State.
+Flight FL-269 entered Planned State.
+Flight FL-270 entered Planned State.
+Flight FL-271 entered Planned State.
+Flight FL-272 entered Planned State.
+Flight FL-273 entered Planned State.
+Flight FL-274 entered Planned State.
+Flight FL-275 entered Planned State.
+Flight FL-276 entered Planned State.
+Flight FL-277 entered Planned State.
+Flight FL-278 entered Planned State.
+Flight FL-279 entered Planned State.
+Flight FL-280 entered Planned State.
+[MASSIVE SCALE TEST] Repository and constraints prepared.
+[MASSIVE SCALE TEST] Starting Genetic Engine execution...
+Generation 0 | Best Fitness: -482221.5
+Generation 1 | Best Fitness: -452277.5
+Generation 2 | Best Fitness: -437332.5
+Generation 3 | Best Fitness: -422379.5
+Generation 4 | Best Fitness: -407388.5
+Generation 5 | Best Fitness: -405366.0
+Generation 6 | Best Fitness: -392390.0
+Generation 7 | Best Fitness: -375435.0
+Generation 8 | Best Fitness: -362407.5
+Generation 9 | Best Fitness: -345444.5
+Generation 10 | Best Fitness: -345439.5
+Generation 11 | Best Fitness: -315449.5
+Generation 12 | Best Fitness: -302522.0
+Generation 13 | Best Fitness: -300454.5
+Generation 14 | Best Fitness: -285508.5
+Generation 15 | Best Fitness: -270469.5
+Generation 16 | Best Fitness: -242549.0
+Generation 17 | Best Fitness: -227646.0
+Generation 18 | Best Fitness: -212629.0
+Generation 19 | Best Fitness: -167739.0
+Generation 20 | Best Fitness: -163714.0
+Generation 21 | Best Fitness: -152670.0
+Generation 22 | Best Fitness: -131802.5
+Generation 23 | Best Fitness: -118813.0
+Generation 24 | Best Fitness: -101804.5
+Generation 25 | Best Fitness: -86807.5
+Generation 26 | Best Fitness: -71809.5
+Generation 27 | Best Fitness: -71757.5
+Generation 28 | Best Fitness: -56818.5
+Generation 29 | Best Fitness: -56762.5
+Generation 30 | Best Fitness: -41769.5
+Generation 31 | Best Fitness: -41768.5
+Generation 32 | Best Fitness: -26775.5
+Generation 33 | Best Fitness: 3112.5
+Generation 34 | Best Fitness: 18103.5
+Generation 35 | Best Fitness: 18158.5
+Generation 36 | Best Fitness: 47916.5
+Generation 37 | Best Fitness: 47993.5
+Generation 38 | Best Fitness: 49937.0
+Generation 39 | Best Fitness: 77984.5
+Generation 40 | Best Fitness: 92899.5
+Generation 41 | Best Fitness: 107844.5
+Generation 42 | Best Fitness: 109865.0
+Generation 43 | Best Fitness: 124890.5
+Generation 44 | Best Fitness: 139832.5
+Generation 45 | Best Fitness: 139849.0
+Generation 46 | Best Fitness: 169773.5
+Generation 47 | Best Fitness: 171783.5
+Generation 48 | Best Fitness: 171832.5
+Generation 49 | Best Fitness: 199693.5
+Generation 50 | Best Fitness: 201703.5
+Generation 51 | Best Fitness: 201752.5
+Generation 52 | Best Fitness: 231641.5
+Generation 53 | Best Fitness: 231698.5
+Generation 54 | Best Fitness: 246639.5
+Generation 55 | Best Fitness: 246639.5
+Generation 56 | Best Fitness: 261683.5
+Generation 57 | Best Fitness: 278642.0
+Generation 58 | Best Fitness: 293640.0
+Generation 59 | Best Fitness: 293640.0
+Generation 60 | Best Fitness: 306670.5
+Generation 61 | Best Fitness: 308630.0
+Generation 62 | Best Fitness: 323632.5
+Generation 63 | Best Fitness: 338680.0
+Generation 64 | Best Fitness: 338680.0
+Generation 65 | Best Fitness: 366613.0
+Generation 66 | Best Fitness: 368657.5
+Generation 67 | Best Fitness: 368657.5
+Generation 68 | Best Fitness: 398604.0
+Generation 69 | Best Fitness: 398604.0
+Generation 70 | Best Fitness: 413593.0
+Generation 71 | Best Fitness: 413593.0
+Generation 72 | Best Fitness: 413593.0
+Generation 73 | Best Fitness: 428445.0
+Generation 74 | Best Fitness: 428487.0
+Generation 75 | Best Fitness: 430460.0
+Generation 76 | Best Fitness: 443441.0
+Generation 77 | Best Fitness: 445454.5
+Generation 78 | Best Fitness: 447418.5
+Generation 79 | Best Fitness: 462414.5
+Generation 80 | Best Fitness: 462456.5
+Generation 81 | Best Fitness: 477408.5
+Generation 82 | Best Fitness: 481430.5
+Generation 83 | Best Fitness: 492400.5
+Generation 84 | Best Fitness: 496464.5
+Generation 85 | Best Fitness: 507333.5
+Generation 86 | Best Fitness: 511313.5
+Generation 87 | Best Fitness: 526301.0
+Generation 88 | Best Fitness: 526303.5
+Generation 89 | Best Fitness: 543219.0
+Generation 90 | Best Fitness: 556144.0
+Generation 91 | Best Fitness: 558156.0
+Generation 92 | Best Fitness: 558156.0
+Generation 93 | Best Fitness: 558156.0
+Generation 94 | Best Fitness: 573120.0
+Generation 95 | Best Fitness: 573120.0
+Generation 96 | Best Fitness: 573172.0
+Generation 97 | Best Fitness: 588069.0
+Generation 98 | Best Fitness: 588120.0
+Generation 99 | Best Fitness: 603030.0
+Generation 100 | Best Fitness: 617928.0
+Generation 101 | Best Fitness: 617990.0
+Generation 102 | Best Fitness: 632928.0
+Generation 103 | Best Fitness: 647783.0
+Generation 104 | Best Fitness: 647941.0
+Generation 105 | Best Fitness: 662889.0
+Generation 106 | Best Fitness: 677833.0
+Generation 107 | Best Fitness: 677932.0
+Generation 108 | Best Fitness: 681858.0
+Generation 109 | Best Fitness: 692881.0
+Generation 110 | Best Fitness: 707826.5
+Generation 111 | Best Fitness: 711850.0
+Generation 112 | Best Fitness: 722788.5
+Generation 113 | Best Fitness: 726812.0
+Generation 114 | Best Fitness: 737732.5
+Generation 115 | Best Fitness: 745785.5
+Generation 116 | Best Fitness: 745808.5
+Generation 117 | Best Fitness: 747801.5
+Generation 118 | Best Fitness: 747801.5
+Generation 119 | Best Fitness: 760774.5
+Generation 120 | Best Fitness: 762792.5
+Generation 121 | Best Fitness: 777747.5
+Generation 122 | Best Fitness: 777747.5
+Generation 123 | Best Fitness: 777769.0
+Generation 124 | Best Fitness: 779760.5
+Generation 125 | Best Fitness: 779760.5
+Generation 126 | Best Fitness: 779782.0
+Generation 127 | Best Fitness: 792704.0
+Generation 128 | Best Fitness: 794707.5
+Generation 129 | Best Fitness: 809642.5
+Generation 130 | Best Fitness: 809664.0
+Generation 131 | Best Fitness: 809664.0
+Generation 132 | Best Fitness: 824536.5
+Generation 133 | Best Fitness: 824536.5
+Generation 134 | Best Fitness: 826554.0
+Generation 135 | Best Fitness: 826554.0
+Generation 136 | Best Fitness: 839475.5
+Generation 137 | Best Fitness: 839501.0
+Generation 138 | Best Fitness: 854428.5
+Generation 139 | Best Fitness: 856499.0
+Generation 140 | Best Fitness: 858463.0
+Generation 141 | Best Fitness: 871426.5
+Generation 142 | Best Fitness: 871426.5
+Generation 143 | Best Fitness: 884300.0
+Generation 144 | Best Fitness: 886321.5
+Generation 145 | Best Fitness: 888307.0
+Generation 146 | Best Fitness: 888330.5
+Generation 147 | Best Fitness: 888334.5
+Generation 148 | Best Fitness: 903290.5
+Generation 149 | Best Fitness: 903314.0
+Generation 150 | Best Fitness: 903339.5
+Generation 151 | Best Fitness: 907246.0
+Generation 152 | Best Fitness: 907267.5
+Generation 153 | Best Fitness: 907267.5
+Generation 154 | Best Fitness: 907267.5
+Generation 155 | Best Fitness: 907269.5
+Generation 156 | Best Fitness: 907354.5
+Generation 157 | Best Fitness: 922209.5
+Generation 158 | Best Fitness: 922296.5
+Generation 159 | Best Fitness: 922296.5
+Generation 160 | Best Fitness: 922298.5
+Generation 161 | Best Fitness: 922298.5
+Generation 162 | Best Fitness: 937293.5
+Generation 163 | Best Fitness: 937295.5
+Generation 164 | Best Fitness: 941268.5
+Generation 165 | Best Fitness: 941365.0
+Generation 166 | Best Fitness: 945295.5
+Generation 167 | Best Fitness: 945295.5
+Generation 168 | Best Fitness: 945394.0
+Generation 169 | Best Fitness: 945394.0
+Generation 170 | Best Fitness: 945395.0
+Generation 171 | Best Fitness: 945395.0
+Generation 172 | Best Fitness: 960294.0
+Generation 173 | Best Fitness: 960294.0
+Generation 174 | Best Fitness: 960294.0
+Generation 175 | Best Fitness: 960343.0
+Generation 176 | Best Fitness: 960343.0
+Generation 177 | Best Fitness: 960343.0
+Generation 178 | Best Fitness: 960343.0
+Generation 179 | Best Fitness: 960346.0
+Generation 180 | Best Fitness: 960346.0
+Generation 181 | Best Fitness: 960350.5
+Generation 182 | Best Fitness: 960350.5
+Generation 183 | Best Fitness: 962307.0
+Generation 184 | Best Fitness: 962314.5
+Generation 185 | Best Fitness: 962314.5
+Generation 186 | Best Fitness: 962314.5
+Generation 187 | Best Fitness: 962361.5
+Generation 188 | Best Fitness: 977209.5
+Generation 189 | Best Fitness: 977209.5
+Generation 190 | Best Fitness: 977256.5
+Generation 191 | Best Fitness: 977323.5
+Generation 192 | Best Fitness: 977323.5
+Generation 193 | Best Fitness: 977324.5
+Generation 194 | Best Fitness: 992219.5
+Generation 195 | Best Fitness: 992220.5
+Generation 196 | Best Fitness: 992220.5
+Generation 197 | Best Fitness: 992222.0
+Generation 198 | Best Fitness: 992266.5
+Generation 199 | Best Fitness: 992266.5
+Generation 200 | Best Fitness: 992268.0
+Generation 201 | Best Fitness: 992270.5
+Generation 202 | Best Fitness: 992272.0
+Generation 203 | Best Fitness: 1007216.5
+Generation 204 | Best Fitness: 1007216.5
+Generation 205 | Best Fitness: 1022100.5
+Generation 206 | Best Fitness: 1022130.0
+Generation 207 | Best Fitness: 1037012.5
+Generation 208 | Best Fitness: 1037017.0
+Generation 209 | Best Fitness: 1037017.0
+Generation 210 | Best Fitness: 1037017.0
+Generation 211 | Best Fitness: 1037070.0
+Generation 212 | Best Fitness: 1037070.0
+Generation 213 | Best Fitness: 1037070.0
+Generation 214 | Best Fitness: 1037118.0
+Generation 215 | Best Fitness: 1037118.0
+Generation 216 | Best Fitness: 1037119.5
+Generation 217 | Best Fitness: 1037139.0
+Generation 218 | Best Fitness: 1037141.0
+Generation 219 | Best Fitness: 1037141.0
+Generation 220 | Best Fitness: 1037141.0
+Generation 221 | Best Fitness: 1037141.0
+Generation 222 | Best Fitness: 1037141.0
+Generation 223 | Best Fitness: 1052105.0
+Generation 224 | Best Fitness: 1052105.0
+Generation 225 | Best Fitness: 1052105.0
+Generation 226 | Best Fitness: 1052105.0
+Generation 227 | Best Fitness: 1052161.0
+Generation 228 | Best Fitness: 1052161.0
+Generation 229 | Best Fitness: 1052161.0
+Generation 230 | Best Fitness: 1067056.5
+Generation 231 | Best Fitness: 1067056.5
+Generation 232 | Best Fitness: 1067064.5
+Generation 233 | Best Fitness: 1067064.5
+Generation 234 | Best Fitness: 1067064.5
+Generation 235 | Best Fitness: 1067064.5
+Generation 236 | Best Fitness: 1067064.5
+Generation 237 | Best Fitness: 1067111.5
+Generation 238 | Best Fitness: 1067115.5
+Generation 239 | Best Fitness: 1067115.5
+Generation 240 | Best Fitness: 1067163.5
+Generation 241 | Best Fitness: 1067163.5
+Generation 242 | Best Fitness: 1067183.5
+Generation 243 | Best Fitness: 1067212.5
+Generation 244 | Best Fitness: 1067212.5
+Generation 245 | Best Fitness: 1067232.5
+Generation 246 | Best Fitness: 1067232.5
+Generation 247 | Best Fitness: 1067232.5
+Generation 248 | Best Fitness: 1067232.5
+Generation 249 | Best Fitness: 1071208.5
+Generation 250 | Best Fitness: 1071208.5
+Generation 251 | Best Fitness: 1071208.5
+Generation 252 | Best Fitness: 1071208.5
+Generation 253 | Best Fitness: 1071208.5
+Generation 254 | Best Fitness: 1071208.5
+Generation 255 | Best Fitness: 1071208.5
+Generation 256 | Best Fitness: 1071212.5
+Generation 257 | Best Fitness: 1071212.5
+Generation 258 | Best Fitness: 1073221.5
+Generation 259 | Best Fitness: 1073221.5
+Generation 260 | Best Fitness: 1073225.5
+Generation 261 | Best Fitness: 1073225.5
+Generation 262 | Best Fitness: 1088203.5
+Generation 263 | Best Fitness: 1088207.5
+Generation 264 | Best Fitness: 1088210.5
+Generation 265 | Best Fitness: 1088210.5
+Generation 266 | Best Fitness: 1088212.0
+Generation 267 | Best Fitness: 1088212.0
+Generation 268 | Best Fitness: 1088260.0
+Generation 269 | Best Fitness: 1088260.0
+Generation 270 | Best Fitness: 1088260.0
+Generation 271 | Best Fitness: 1088260.0
+Generation 272 | Best Fitness: 1088260.0
+Generation 273 | Best Fitness: 1088260.0
+Generation 274 | Best Fitness: 1088260.0
+Generation 275 | Best Fitness: 1088260.0
+Generation 276 | Best Fitness: 1088260.0
+Generation 277 | Best Fitness: 1088260.0
+Generation 278 | Best Fitness: 1088261.0
+Generation 279 | Best Fitness: 1088261.0
+Generation 280 | Best Fitness: 1088303.0
+Generation 281 | Best Fitness: 1088304.0
+Generation 282 | Best Fitness: 1088304.0
+Generation 283 | Best Fitness: 1088304.0
+Generation 284 | Best Fitness: 1088304.0
+Generation 285 | Best Fitness: 1088351.0
+Generation 286 | Best Fitness: 1088351.0
+Generation 287 | Best Fitness: 1088351.0
+Generation 288 | Best Fitness: 1088351.0
+Generation 289 | Best Fitness: 1088351.0
+Generation 290 | Best Fitness: 1088353.0
+Generation 291 | Best Fitness: 1088353.0
+Generation 292 | Best Fitness: 1088353.0
+Generation 293 | Best Fitness: 1088353.0
+Generation 294 | Best Fitness: 1088356.0
+Generation 295 | Best Fitness: 1088356.0
+Generation 296 | Best Fitness: 1088356.0
+Generation 297 | Best Fitness: 1088356.0
+Generation 298 | Best Fitness: 1088356.0
+Generation 299 | Best Fitness: 1088363.5
+Generation 300 | Best Fitness: 1088363.5
+Generation 301 | Best Fitness: 1088363.5
+Generation 302 | Best Fitness: 1088363.5
+Generation 303 | Best Fitness: 1088363.5
+Generation 304 | Best Fitness: 1088363.5
+Generation 305 | Best Fitness: 1088363.5
+Generation 306 | Best Fitness: 1088363.5
+Generation 307 | Best Fitness: 1088369.5
+Generation 308 | Best Fitness: 1088369.5
+Generation 309 | Best Fitness: 1088369.5
+Generation 310 | Best Fitness: 1088373.5
+Generation 311 | Best Fitness: 1088373.5
+Generation 312 | Best Fitness: 1088373.5
+Generation 313 | Best Fitness: 1088373.5
+Generation 314 | Best Fitness: 1088373.5
+Generation 315 | Best Fitness: 1088458.5
+Generation 316 | Best Fitness: 1088458.5
+Generation 317 | Best Fitness: 1088458.5
+Generation 318 | Best Fitness: 1088458.5
+Generation 319 | Best Fitness: 1088458.5
+Generation 320 | Best Fitness: 1088458.5
+Generation 321 | Best Fitness: 1088458.5
+Generation 322 | Best Fitness: 1088458.5
+Generation 323 | Best Fitness: 1088459.5
+Generation 324 | Best Fitness: 1088459.5
+Generation 325 | Best Fitness: 1088459.5
+Generation 326 | Best Fitness: 1088460.5
+Generation 327 | Best Fitness: 1088460.5
+Generation 328 | Best Fitness: 1088460.5
+Generation 329 | Best Fitness: 1088460.5
+Generation 330 | Best Fitness: 1088460.5
+Generation 331 | Best Fitness: 1088460.5
+Generation 332 | Best Fitness: 1088460.5
+Generation 333 | Best Fitness: 1088460.5
+Generation 334 | Best Fitness: 1088460.5
+Generation 335 | Best Fitness: 1088464.5
+Generation 336 | Best Fitness: 1088464.5
+Generation 337 | Best Fitness: 1088468.5
+Generation 338 | Best Fitness: 1103358.5
+Generation 339 | Best Fitness: 1103362.5
+Generation 340 | Best Fitness: 1103362.5
+Generation 341 | Best Fitness: 1103362.5
+Generation 342 | Best Fitness: 1103362.5
+Generation 343 | Best Fitness: 1103362.5
+Generation 344 | Best Fitness: 1103362.5
+Generation 345 | Best Fitness: 1103362.5
+Generation 346 | Best Fitness: 1103362.5
+Generation 347 | Best Fitness: 1103362.5
+Generation 348 | Best Fitness: 1103362.5
+Generation 349 | Best Fitness: 1103383.5
+Generation 350 | Best Fitness: 1103383.5
+Generation 351 | Best Fitness: 1103383.5
+Generation 352 | Best Fitness: 1118260.5
+Generation 353 | Best Fitness: 1118281.5
+Generation 354 | Best Fitness: 1118281.5
+Generation 355 | Best Fitness: 1118283.5
+Generation 356 | Best Fitness: 1118284.5
+Generation 357 | Best Fitness: 1133228.5
+Generation 358 | Best Fitness: 1133231.5
+Generation 359 | Best Fitness: 1133231.5
+Generation 360 | Best Fitness: 1133231.5
+Generation 361 | Best Fitness: 1133231.5
+Generation 362 | Best Fitness: 1133231.5
+Generation 363 | Best Fitness: 1133231.5
+Generation 364 | Best Fitness: 1133234.5
+Generation 365 | Best Fitness: 1148129.5
+Generation 366 | Best Fitness: 1148129.5
+Generation 367 | Best Fitness: 1148129.5
+Generation 368 | Best Fitness: 1148132.5
+Generation 369 | Best Fitness: 1148132.5
+Generation 370 | Best Fitness: 1148132.5
+Generation 371 | Best Fitness: 1148135.5
+Generation 372 | Best Fitness: 1148135.5
+Generation 373 | Best Fitness: 1148135.5
+Generation 374 | Best Fitness: 1148135.5
+Generation 375 | Best Fitness: 1148138.5
+Generation 376 | Best Fitness: 1148138.5
+Generation 377 | Best Fitness: 1148138.5
+Generation 378 | Best Fitness: 1148138.5
+Generation 379 | Best Fitness: 1148138.5
+Generation 380 | Best Fitness: 1148144.5
+Generation 381 | Best Fitness: 1148144.5
+Generation 382 | Best Fitness: 1148144.5
+Generation 383 | Best Fitness: 1148144.5
+Generation 384 | Best Fitness: 1148144.5
+Generation 385 | Best Fitness: 1148144.5
+Generation 386 | Best Fitness: 1148144.5
+Generation 387 | Best Fitness: 1148144.5
+Generation 388 | Best Fitness: 1148144.5
+Generation 389 | Best Fitness: 1148144.5
+Generation 390 | Best Fitness: 1148144.5
+Generation 391 | Best Fitness: 1148144.5
+Generation 392 | Best Fitness: 1148144.5
+Generation 393 | Best Fitness: 1148144.5
+Generation 394 | Best Fitness: 1148144.5
+Generation 395 | Best Fitness: 1148144.5
+Generation 396 | Best Fitness: 1148144.5
+Generation 397 | Best Fitness: 1148144.5
+Generation 398 | Best Fitness: 1148144.5
+Generation 399 | Best Fitness: 1148144.5
+Generation 400 | Best Fitness: 1148144.5
+Generation 401 | Best Fitness: 1148144.5
+Generation 402 | Best Fitness: 1148144.5
+Generation 403 | Best Fitness: 1148144.5
+Generation 404 | Best Fitness: 1148144.5
+Generation 405 | Best Fitness: 1148144.5
+Generation 406 | Best Fitness: 1148144.5
+Generation 407 | Best Fitness: 1148146.0
+Generation 408 | Best Fitness: 1148146.0
+Generation 409 | Best Fitness: 1148146.0
+Generation 410 | Best Fitness: 1148146.0
+Generation 411 | Best Fitness: 1148146.0
+Generation 412 | Best Fitness: 1148146.0
+Generation 413 | Best Fitness: 1148146.0
+Generation 414 | Best Fitness: 1148146.0
+Generation 415 | Best Fitness: 1148146.0
+Generation 416 | Best Fitness: 1148146.0
+Generation 417 | Best Fitness: 1148146.0
+Generation 418 | Best Fitness: 1148146.0
+Generation 419 | Best Fitness: 1148146.0
+Generation 420 | Best Fitness: 1148146.0
+Generation 421 | Best Fitness: 1148146.0
+Generation 422 | Best Fitness: 1148146.0
+Generation 423 | Best Fitness: 1148155.0
+Generation 424 | Best Fitness: 1148155.0
+Generation 425 | Best Fitness: 1148155.0
+Generation 426 | Best Fitness: 1148159.5
+Generation 427 | Best Fitness: 1148159.5
+Generation 428 | Best Fitness: 1148159.5
+Generation 429 | Best Fitness: 1148159.5
+Generation 430 | Best Fitness: 1148159.5
+Generation 431 | Best Fitness: 1148159.5
+Generation 432 | Best Fitness: 1148159.5
+Generation 433 | Best Fitness: 1148159.5
+Generation 434 | Best Fitness: 1148172.5
+Generation 435 | Best Fitness: 1148172.5
+Generation 436 | Best Fitness: 1148172.5
+Generation 437 | Best Fitness: 1148172.5
+Generation 438 | Best Fitness: 1148172.5
+Generation 439 | Best Fitness: 1148210.5
+Generation 440 | Best Fitness: 1148210.5
+Generation 441 | Best Fitness: 1148210.5
+Generation 442 | Best Fitness: 1148210.5
+Generation 443 | Best Fitness: 1148210.5
+Generation 444 | Best Fitness: 1148210.5
+Generation 445 | Best Fitness: 1148210.5
+Generation 446 | Best Fitness: 1148210.5
+Generation 447 | Best Fitness: 1148210.5
+Generation 448 | Best Fitness: 1148210.5
+Generation 449 | Best Fitness: 1148210.5
+Generation 450 | Best Fitness: 1148210.5
+Generation 451 | Best Fitness: 1148210.5
+Generation 452 | Best Fitness: 1150216.0
+Generation 453 | Best Fitness: 1150216.0
+Generation 454 | Best Fitness: 1150216.0
+Generation 455 | Best Fitness: 1150218.0
+Generation 456 | Best Fitness: 1150218.0
+Generation 457 | Best Fitness: 1150218.0
+Generation 458 | Best Fitness: 1150218.0
+Generation 459 | Best Fitness: 1150218.0
+Generation 460 | Best Fitness: 1150218.0
+Generation 461 | Best Fitness: 1150218.0
+Generation 462 | Best Fitness: 1150218.0
+Generation 463 | Best Fitness: 1150218.0
+Generation 464 | Best Fitness: 1150218.0
+Generation 465 | Best Fitness: 1150218.0
+Generation 466 | Best Fitness: 1150218.0
+Generation 467 | Best Fitness: 1150218.0
+Generation 468 | Best Fitness: 1150218.0
+Generation 469 | Best Fitness: 1150218.0
+Generation 470 | Best Fitness: 1150218.0
+Generation 471 | Best Fitness: 1150218.0
+Generation 472 | Best Fitness: 1150218.0
+Generation 473 | Best Fitness: 1150218.0
+Generation 474 | Best Fitness: 1150218.0
+Generation 475 | Best Fitness: 1150218.0
+Generation 476 | Best Fitness: 1150218.0
+Generation 477 | Best Fitness: 1150218.0
+Generation 478 | Best Fitness: 1150218.0
+Generation 479 | Best Fitness: 1150218.0
+Generation 480 | Best Fitness: 1150218.0
+Generation 481 | Best Fitness: 1150218.0
+Generation 482 | Best Fitness: 1150218.0
+Generation 483 | Best Fitness: 1150218.0
+Generation 484 | Best Fitness: 1150218.0
+Generation 485 | Best Fitness: 1150218.0
+Generation 486 | Best Fitness: 1150218.0
+Generation 487 | Best Fitness: 1150220.0
+Generation 488 | Best Fitness: 1150220.0
+Generation 489 | Best Fitness: 1150220.0
+Generation 490 | Best Fitness: 1150220.0
+Generation 491 | Best Fitness: 1150220.0
+Generation 492 | Best Fitness: 1150223.0
+Generation 493 | Best Fitness: 1150223.0
+Generation 494 | Best Fitness: 1150223.0
+Generation 495 | Best Fitness: 1150223.0
+Generation 496 | Best Fitness: 1150223.0
+Generation 497 | Best Fitness: 1150244.0
+Generation 498 | Best Fitness: 1150244.0
+Generation 499 | Best Fitness: 1150244.0
+
+==================================================
+            MASSIVE SCALE TEST RESULTS            
+==================================================
+Total Execution Time: 121.184 seconds
+Final Best Fitness Score: 1150244.0
+SUCCESS: The AI successfully grouped the runtime flights with ZERO hard penalties!
+==================================================
+

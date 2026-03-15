@@ -32,8 +32,8 @@ public class FitnessEvaluator {
     private static final double HARD_PENALTY_OVERLAP = 15000.0;
     private static final double HARD_PENALTY_SIZE = 50000.0;
     private static final double HARD_PENALTY_INT = 50000.0;
-    private static final double SOFT_PENALTY_WALK = 0.0;// 0.1
-    private static final double SOFT_PENALTY_BUFFER = 0.0;// 50.0
+    private static final double SOFT_PENALTY_WALK = 0.1;// 0.1
+    private static final double SOFT_PENALTY_BUFFER = 50.0;// 50.0
     private static final double SOFT_PENALTY_TRANSFER = 0.1;
     private static final double SOFT_PENALTY_WASTE = 2000.0;
 
@@ -236,7 +236,7 @@ public class FitnessEvaluator {
                 int components = countConnectedComponents(gates, graph);
                 if (components > 1) {
                     // Apply a penalty of 1500 for every distinct, disconnected cluster beyond the first
-                    softPenalties += ((components - 1) * 10000.0);
+                    softPenalties += ((components - 1) * 15000.0);
                 }
             }
         }
