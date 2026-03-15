@@ -19,8 +19,9 @@ public class LandedState implements FlightState {
 
     @Override
     public void update(Flight f, int currentTime) {
-        // Critical decision point.
-        // Logic for assigning a gate or moving to HoldingState would go here.
-        // For Phase 1, we might just stay here or manually transition for testing.
+        if (f.getAssignedGate() != null)
+            f.setState(new AtGateState());
+        else
+            f.setState(new HoldingState());
     }
 }

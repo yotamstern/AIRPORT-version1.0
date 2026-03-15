@@ -1,6 +1,7 @@
 package model.state;
 
 import model.Flight;
+import model.enums.GateStatus;
 
 /**
  * Represents the state where the flight is successfully parked at a gate.
@@ -19,5 +20,11 @@ public class AtGateState implements FlightState {
     public void update(Flight f, int currentTime) {
         // Flight is parked.
         // Could transition to a DepartedState in future phases if needed.
+        if (f.getDepartureTime() >= currentTime){
+            if(f.getAssignedGate() != null) {
+                f.getAssignedGate().setStatus(GateStatus.FREE);
+            }
+            f.setState(new DepartedState());
+        }
     }
 }

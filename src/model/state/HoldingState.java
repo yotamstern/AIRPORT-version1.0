@@ -18,6 +18,7 @@ public class HoldingState implements FlightState {
 
     @Override
     public void update(Flight f, int currentTime) {
-        // Logic to retry gate assignment would go here.
+        if (f.getAssignedGate() != null)
+            f.setState(new AtGateState());
     }
 }
