@@ -165,7 +165,6 @@ public class AirportDashboardFrame extends JFrame {
         statsPanel.setLayout(new BoxLayout(statsPanel, BoxLayout.Y_AXIS));
         statsPanel.setBackground(BG_PANEL);
         statsPanel.setBorder(createStyledTitledBorder("Live Stats"));
-
         // Add Statistic Labels
         statsPanel.add(createStatRow("Total Flights", lblTotalFlights));
         statsPanel.add(Box.createRigidArea(new Dimension(0, 12)));
@@ -177,7 +176,7 @@ public class AirportDashboardFrame extends JFrame {
         statsPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         statsPanel.add(createStatRow("Current Generation", lblGeneration));
 
-        statsPanel.setMaximumSize(new Dimension(250, 360));
+        statsPanel.setMaximumSize(new Dimension(250, 400));
         return statsPanel;
     }
 

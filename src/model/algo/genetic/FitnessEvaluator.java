@@ -183,14 +183,19 @@ public class FitnessEvaluator {
             }
         }
 
-        // Soft Penalty 1: Walking Distance (-0.1 per point of distance)
+        // Soft Penalty 1: Walking Distance (-0.1 per passenger·distance unit)
+        // Weighted by passenger count so a full jumbo jet far from the entrance
+        // is penalised much more than an empty regional flight at the same gate.
         double totalWalkingDistance = 0;
-        for (int gateId : chromosome) {
+        for (int i = 0; i < chromosome.length; i++) {
+            int gateId = chromosome[i];
+            Flight f = flights.get(i);
+            int pax = Math.max(1, f.getPassengerCount()); // treat 0 as 1 to avoid nullifying penalty
             double dist = graph.getShortestDistance(1, gateId); // Distance from Entrance (Gate 1)
             if (dist != Double.POSITIVE_INFINITY) {
-                totalWalkingDistance += dist;
+                totalWalkingDistance += dist * pax;
             } else {
-                totalWalkingDistance += 1000; // Large penalty for unreachable gate
+                totalWalkingDistance += 1000 * pax; // Large penalty for unreachable gate
             }
         }
         softPenalties += totalWalkingDistance * SOFT_PENALTY_WALK;
@@ -236,7 +241,7 @@ public class FitnessEvaluator {
                 int components = countConnectedComponents(gates, graph);
                 if (components > 1) {
                     // Apply a penalty of 1500 for every distinct, disconnected cluster beyond the first
-                    softPenalties += ((components - 1) * 15000.0);
+                    softPenalties += ((components - 1) * 1500.0);
                 }
             }
         }

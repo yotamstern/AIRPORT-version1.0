@@ -20,6 +20,7 @@ public class Flight implements Comparable<Flight> {
     private Gate assignedGate; // Proactively added for UI system integration
     private boolean isInternational; // Phase 15 Constraints
     private String airlineCode; // Airline clustering constraint
+    private int passengerCount; // Number of passengers on this flight
 
     /**
      * Constructs a new Flight.
@@ -52,6 +53,14 @@ public class Flight implements Comparable<Flight> {
         this.airlineCode = airlineCode;
         this.state = new PlannedState(); // Initial state
         this.state.enter(this);
+    }
+
+    public int getPassengerCount() {
+        return passengerCount;
+    }
+
+    public void setPassengerCount(int passengerCount) {
+        this.passengerCount = passengerCount;
     }
 
     public String getAirlineCode() {

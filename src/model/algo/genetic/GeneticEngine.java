@@ -4,6 +4,7 @@ import model.Flight;
 import model.FlightRepository;
 import model.Gate;
 import model.algo.GreedyInitializer;
+import model.ds.FlightMinHeap;
 import model.enums.PlaneType;
 import model.spatial.TerminalGraph;
 
@@ -352,7 +353,11 @@ public class GeneticEngine {
             }
         }
 
-        return getBestSolution();
+        int[] best = getBestSolution();
+        double preSweepFitness = evaluator.calculateFitness(best, flights);
+        System.out.println("[GA] Pre-sweep best fitness: " + preSweepFitness);
+
+        return greedySweep(best, evaluator);
     }
 
     private Flight getFlight(int j, int[] best) {
@@ -376,6 +381,165 @@ public class GeneticEngine {
 
     public boolean isPaused() {
         return isPaused;
+    }
+
+    /**
+     * Post-processing sweep: removes hard-constraint violations from the best
+     * chromosome, places the evicted flights into a FlightMinHeap ordered by
+     * urgency, then greedily re-assigns them into free time slots.
+     *
+     * Assignment priorities:
+     *   1. Exact-size gate that is free during the flight's window
+     *   2. Oversized gate that is free during the flight's window
+     *   3. Force-assign to any valid gate (hard violation kept, prevents unscheduled)
+     *
+     * Time Complexity: O(N log N + N*G)
+     */
+    private int[] greedySweep(int[] chromosome, FitnessEvaluator evaluator) {
+        int[] result = chromosome.clone();
+
+        // Build flightId -> index map for O(1) lookup during re-assignment
+        Map<Integer, Integer> flightIdToIndex = new HashMap<>();
+        for (int i = 0; i < flights.size(); i++) {
+            flightIdToIndex.put(flights.get(i).getId(), i);
+        }
+
+        // --- Step 1: Identify all violating flight indices ---
+        Set<Integer> violatingIndices = new HashSet<>();
+
+        // 1a. Size and international mismatches
+        for (int i = 0; i < result.length; i++) {
+            Gate gate = gateMap.get(result[i]);
+            Flight f = flights.get(i);
+            if (gate == null
+                    || !evaluator.isGateLargeEnough(gate.getSize(), f.getType())
+                    || f.isInternational() != gate.isInternational()) {
+                violatingIndices.add(i);
+            }
+        }
+
+        // 1b. Time overlaps — per gate, sort by arrival, evict the lower-urgency
+        //     flight from each overlapping pair
+        Map<Integer, List<Integer>> gateToIndices = new HashMap<>();
+        for (int i = 0; i < result.length; i++) {
+            if (violatingIndices.contains(i)) continue;
+            gateToIndices.computeIfAbsent(result[i], k -> new ArrayList<>()).add(i);
+        }
+        for (List<Integer> indices : gateToIndices.values()) {
+            indices.sort(Comparator.comparingInt(i -> flights.get(i).getArrivalTime()));
+            int lastValidIdx = 0;
+            for (int k = 1; k < indices.size(); k++) {
+                Flight prev = flights.get(indices.get(lastValidIdx));
+                Flight curr = flights.get(indices.get(k));
+                if (curr.getArrivalTime() < prev.getDepartureTime()) {
+                    // Overlap: evict the lower-urgency flight, keep the higher-urgency one
+                    if (curr.getUrgencyScore() >= prev.getUrgencyScore()) {
+                        violatingIndices.add(indices.get(lastValidIdx));
+                        lastValidIdx = k;
+                    } else {
+                        violatingIndices.add(indices.get(k));
+                    }
+                } else {
+                    lastValidIdx = k;
+                }
+            }
+        }
+
+        System.out.println("[Sweeper] Found " + violatingIndices.size() + " violating flights.");
+
+        // --- Step 2: Push violating flights into FlightMinHeap, clear their slots ---
+        FlightMinHeap holdingHeap = new FlightMinHeap(Math.max(violatingIndices.size() + 1, 10));
+        for (int idx : violatingIndices) {
+            holdingHeap.insert(flights.get(idx));
+            result[idx] = -1;
+        }
+
+        // --- Step 3: Build gate occupancy from the clean (non-violating) schedule ---
+        // Each entry: list of [arrivalTime, departureTime] intervals
+        Map<Integer, List<int[]>> gateOccupancy = new HashMap<>();
+        for (Gate g : gates) {
+            gateOccupancy.put(g.getId(), new ArrayList<>());
+        }
+        for (int i = 0; i < result.length; i++) {
+            if (result[i] == -1) continue;
+            Flight f = flights.get(i);
+            gateOccupancy.get(result[i]).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
+        }
+
+        // --- Step 4: Greedy re-assignment from the holding heap ---
+        int reassigned = 0;
+        while (!holdingHeap.isEmpty()) {
+            Flight f = holdingHeap.extractMin();
+            int flightIdx = flightIdToIndex.get(f.getId());
+            boolean assigned = false;
+
+            // Priority 1: exact-size gate, free during this flight's window
+            for (Gate g : gates) {
+                if (evaluator.getWastedSpaceLevel(g.getSize(), f.getType()) != 0) continue;
+                if (!evaluator.isGateLargeEnough(g.getSize(), f.getType())) continue;
+                if (f.isInternational() != g.isInternational()) continue;
+                if (isFreeSlot(gateOccupancy.get(g.getId()), f)) {
+                    result[flightIdx] = g.getId();
+                    gateOccupancy.get(g.getId()).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
+                    assigned = true;
+                    reassigned++;
+                    break;
+                }
+            }
+
+            // Priority 2: oversized gate, free during this flight's window
+            if (!assigned) {
+                for (Gate g : gates) {
+                    if (!evaluator.isGateLargeEnough(g.getSize(), f.getType())) continue;
+                    if (f.isInternational() != g.isInternational()) continue;
+                    if (isFreeSlot(gateOccupancy.get(g.getId()), f)) {
+                        result[flightIdx] = g.getId();
+                        gateOccupancy.get(g.getId()).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
+                        assigned = true;
+                        reassigned++;
+                        break;
+                    }
+                }
+            }
+
+            // Priority 3: force-assign to any valid gate (hard violation, prevents unscheduled)
+            if (!assigned) {
+                for (Gate g : gates) {
+                    if (evaluator.isGateLargeEnough(g.getSize(), f.getType())
+                            && f.isInternational() == g.isInternational()) {
+                        result[flightIdx] = g.getId();
+                        gateOccupancy.get(g.getId()).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
+                        break;
+                    }
+                }
+            }
+        }
+
+        System.out.println("[Sweeper] Reassigned " + reassigned + " / " + violatingIndices.size() + " flights cleanly.");
+
+        // --- Step 5: Recalculate and log post-sweep fitness ---
+        double postSweepFitness = evaluator.calculateFitness(result, flights);
+        System.out.println("[Sweeper] Post-sweep fitness: " + postSweepFitness);
+
+        return result;
+    }
+
+    /**
+     * Checks whether a flight can occupy a gate slot without causing a time
+     * overlap with any already-scheduled flight. Includes the 15-minute
+     * turnaround buffer that GreedyInitializer also enforces.
+     */
+    private boolean isFreeSlot(List<int[]> occupancy, Flight f) {
+        for (int[] interval : occupancy) {
+            // interval[0] = arrivalTime, interval[1] = departureTime
+            // Conflict if the new flight's window overlaps the existing window
+            // including the 15-minute turnaround buffer on each departure
+            if (f.getArrivalTime() < interval[1] + 15
+                    && interval[0] < f.getDepartureTime() + 15) {
+                return false;
+            }
+        }
+        return true;
     }
 
     // Test Harness

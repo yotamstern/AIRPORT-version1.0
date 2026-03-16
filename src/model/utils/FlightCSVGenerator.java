@@ -15,7 +15,7 @@ public class FlightCSVGenerator {
 
         try (FileWriter writer = new FileWriter(filename)) {
             // Write CSV header
-            writer.write("FlightCode,PlaneSize,IsInternational,ArrivalMinute,DepartureMinute,Transfers\n");
+            writer.write("FlightCode,PlaneSize,IsInternational,ArrivalMinute,DepartureMinute,PassengerCount,Transfers\n");
 
             // Calculate exact quotas based on 250 flights
             int numSmallDom = (int) (numFlights * 0.50 * 0.66); // 15 Small Gates * 66% Dom = ~83
@@ -29,11 +29,12 @@ public class FlightCSVGenerator {
             numSmallDom += (numFlights - assignedCount);
 
             java.util.List<String[]> flightSpecs = new java.util.ArrayList<>();
-            for (int i = 0; i < numSmallDom; i++) flightSpecs.add(new String[]{"SMALL_BODY", "false", "40"});
-            for (int i = 0; i < numSmallInt; i++) flightSpecs.add(new String[]{"SMALL_BODY", "true", "40"});
-            for (int i = 0; i < numLargeDom; i++) flightSpecs.add(new String[]{"LARGE_BODY", "false", "55"});
-            for (int i = 0; i < numLargeInt; i++) flightSpecs.add(new String[]{"LARGE_BODY", "true", "55"});
-            for (int i = 0; i < numJumboInt; i++) flightSpecs.add(new String[]{"JUMBO_BODY", "true", "75"});
+            // Format: PlaneSize, IsInternational, BaseTurnaround, MinPax, MaxPax
+            for (int i = 0; i < numSmallDom; i++) flightSpecs.add(new String[]{"SMALL_BODY", "false", "40", "50", "150"});
+            for (int i = 0; i < numSmallInt; i++) flightSpecs.add(new String[]{"SMALL_BODY", "true", "40", "50", "150"});
+            for (int i = 0; i < numLargeDom; i++) flightSpecs.add(new String[]{"LARGE_BODY", "false", "55", "150", "280"});
+            for (int i = 0; i < numLargeInt; i++) flightSpecs.add(new String[]{"LARGE_BODY", "true", "55", "150", "280"});
+            for (int i = 0; i < numJumboInt; i++) flightSpecs.add(new String[]{"JUMBO_BODY", "true", "75", "280", "500"});
 
             // Shuffle the specs so sizes are randomly distributed throughout the day
             java.util.Collections.shuffle(flightSpecs, rand);
@@ -56,6 +57,9 @@ public class FlightCSVGenerator {
                 String planeSize = spec[0];
                 isInternational = Boolean.parseBoolean(spec[1]);
                 int baseTurnaround = Integer.parseInt(spec[2]);
+                int minPax = Integer.parseInt(spec[3]);
+                int maxPax = Integer.parseInt(spec[4]);
+                int passengerCount = minPax + rand.nextInt(maxPax - minPax + 1);
 
                 // Generate Spread Arrival Time (with +/- 25 min variance to keep it looking organic)
                 int baseArrival = 360 + (int)(i * minutesPerFlight);
@@ -94,8 +98,8 @@ public class FlightCSVGenerator {
                 }
 
                 // Write the flight record to the CSV file
-                writer.write(String.format("%s,%s,%b,%d,%d,%s\n",
-                        flightCode, planeSize, isInternational, arrivalMinute, departureMinute, transfersStr.toString()));
+                writer.write(String.format("%s,%s,%b,%d,%d,%d,%s\n",
+                        flightCode, planeSize, isInternational, arrivalMinute, departureMinute, passengerCount, transfersStr.toString()));
             }
 
             System.out.println("Successfully generated " + numFlights + " flights to " + filename);

@@ -46,12 +46,21 @@ public class CSVLoader {
                         // Set the correct service duration based on the parsed departure - arrival
                         flight.setServiceDuration(departureMinute - arrivalMinute);
 
+                        // Parse passenger count (6th column)
+                        if (data.length >= 6) {
+                            try {
+                                flight.setPassengerCount(Integer.parseInt(data[5].trim()));
+                            } catch (NumberFormatException e) {
+                                // leave default 0 if column is missing or malformed
+                            }
+                        }
+
                         repo.addFlight(flight);
                         flightCodeToId.put(flightCode, flight.getId());
 
-                        // If there is transfer data (6th column)
-                        if (data.length >= 6 && !data[5].trim().isEmpty()) {
-                            String[] transferData = data[5].trim().split(";");
+                        // If there is transfer data (7th column)
+                        if (data.length >= 7 && !data[6].trim().isEmpty()) {
+                            String[] transferData = data[6].trim().split(";");
                             pendingTransfers.put(flight.getId(), transferData);
                         }
 
