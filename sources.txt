@@ -14,6 +14,7 @@ C:\YudGimel\AIRPORT-version1.0\src\model\spatial\Edge.java
 C:\YudGimel\AIRPORT-version1.0\src\model\spatial\TerminalGraph.java
 C:\YudGimel\AIRPORT-version1.0\src\model\state\ApproachingState.java
 C:\YudGimel\AIRPORT-version1.0\src\model\state\AtGateState.java
+C:\YudGimel\AIRPORT-version1.0\src\model\state\DepartedState.java
 C:\YudGimel\AIRPORT-version1.0\src\model\state\FlightState.java
 C:\YudGimel\AIRPORT-version1.0\src\model\state\HoldingState.java
 C:\YudGimel\AIRPORT-version1.0\src\model\state\LandedState.java

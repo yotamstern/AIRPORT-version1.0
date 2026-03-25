@@ -331,43 +331,10 @@ public class AirportDashboardFrame extends JFrame {
 
         // Phase 20: Greedy Repair Algorithm (Run only on Final Step)
         if (currentGeneration == -1 && systemGates != null) {
-            PriorityQueue<Flight> stillHolding = new PriorityQueue<>(holdingFlights.comparator());
-            while (!holdingFlights.isEmpty()) {
-                Flight f = holdingFlights.poll();
-                boolean assigned = false;
-
-                for (Gate gate : systemGates) {
-                    if (isGateLargeEnough(gate.getSize(), f.getType())
-                            && gate.isInternational() == f.isInternational()) {
-                        int gateId = gate.getId();
-                        List<Flight> assignedToGate = gateMap.getOrDefault(gateId, new ArrayList<>());
-
-                        boolean canFit = true;
-                        for (Flight existingFlight : assignedToGate) {
-                            if (!(f.getDepartureTime() <= existingFlight.getArrivalTime() ||
-                                    f.getArrivalTime() >= existingFlight.getDepartureTime())) {
-                                canFit = false;
-                                break;
-                            }
-                        }
-
-                        if (canFit) {
-                            f.setAssignedGate(gate);
-                            assignedToGate.add(f);
-                            assignedToGate.sort(Comparator.comparingInt(Flight::getArrivalTime));
-                            gateMap.put(gateId, assignedToGate);
-                            assigned = true;
-                            // Add to GA fitness manually for UI display consistency of 10k Base Score Match
-                            fitnessScore += 10000;
-                            break;
-                        }
-                    }
-                }
-                if (!assigned) {
-                    stillHolding.add(f);
-                }
-            }
-            holdingFlights = stillHolding;
+            int prevCount = holdingFlights.size();
+            holdingFlights = runGreedyRepair(holdingFlights, gateMap);
+            int repairedCount = prevCount - holdingFlights.size();
+            fitnessScore += repairedCount * 10000;
         }
 
         int currentAssigned = currentFlights.size() - holdingFlights.size();
@@ -533,6 +500,49 @@ public class AirportDashboardFrame extends JFrame {
 
         btnPause.setText("Pause");
         btnPause.setBackground(BTN_BASIC);
+    }
+
+    private PriorityQueue<Flight> runGreedyRepair(PriorityQueue<Flight> holdingFlights, Map<Integer, List<Flight>> gateMap) {
+        PriorityQueue<Flight> stillHolding = new PriorityQueue<>(holdingFlights.comparator());
+        while (!holdingFlights.isEmpty()) {
+            Flight f = holdingFlights.poll();
+            boolean assigned = tryRepairAssign(f, gateMap);
+            if (!assigned) {
+                stillHolding.add(f);
+            }
+        }
+        return stillHolding;
+    }
+
+    private boolean tryRepairAssign(Flight f, Map<Integer, List<Flight>> gateMap) {
+        java.util.Iterator<Gate> gateIter = systemGates.iterator();
+        while (gateIter.hasNext()) {
+            Gate gate = gateIter.next();
+            if (isGateLargeEnough(gate.getSize(), f.getType()) && gate.isInternational() == f.isInternational()) {
+                int gateId = gate.getId();
+                List<Flight> assignedToGate = gateMap.getOrDefault(gateId, new ArrayList<>());
+                
+                if (canFitInGate(f, assignedToGate)) {
+                    f.setAssignedGate(gate);
+                    assignedToGate.add(f);
+                    assignedToGate.sort(Comparator.comparingInt(Flight::getArrivalTime));
+                    gateMap.put(gateId, assignedToGate);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean canFitInGate(Flight f, List<Flight> assignedToGate) {
+        java.util.Iterator<Flight> existingIter = assignedToGate.iterator();
+        while (existingIter.hasNext()) {
+            Flight existingFlight = existingIter.next();
+            if (!(f.getDepartureTime() <= existingFlight.getArrivalTime() || f.getArrivalTime() >= existingFlight.getDepartureTime())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static void main(String[] args) {

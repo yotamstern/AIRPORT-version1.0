@@ -10,6 +10,6 @@ public class DepartedState implements FlightState {
 
     @Override
     public void update(Flight f, int currentTime) {
-        // Terminal state — no transitions
+        // Terminal state — no need for transitions
     }
 }

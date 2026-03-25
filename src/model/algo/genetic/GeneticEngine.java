@@ -66,12 +66,14 @@ public class GeneticEngine {
                 List<Gate> exactFit = new ArrayList<>();
                 List<Gate> oversizedFit = new ArrayList<>();
                 for (Gate g : gates) {
-                    if (g.isInternational() != intl) continue;
-                    if (!tempEval.isGateLargeEnough(g.getSize(), pt)) continue;
-                    if (tempEval.getWastedSpaceLevel(g.getSize(), pt) == 0) {
-                        exactFit.add(g);
-                    } else {
-                        oversizedFit.add(g);
+                    boolean isCorrectIntl = g.isInternational() == intl;
+                    boolean isLargeEnough = tempEval.isGateLargeEnough(g.getSize(), pt);
+                    if (isCorrectIntl && isLargeEnough) {
+                        if (tempEval.getWastedSpaceLevel(g.getSize(), pt) == 0) {
+                            exactFit.add(g);
+                        } else {
+                            oversizedFit.add(g);
+                        }
                     }
                 }
                 // Prefer exact-fit gates; fall back to oversized; last resort: all gates
@@ -270,13 +272,12 @@ public class GeneticEngine {
 
             if (!hasConflict) {
                 // Time Overlap check
-                for (int j = 0; j < chromosome.length; j++) {
+                for (int j = 0; j < chromosome.length && !hasConflict; j++) {
                     if (i != j && chromosome[i] == chromosome[j]) {
                         Flight f2 = flights.get(j);
                         if (f1.getArrivalTime() < f2.getDepartureTime()
                                 && f2.getArrivalTime() < f1.getDepartureTime()) {
                             hasConflict = true;
-                            break;
                         }
                     }
                 }
@@ -305,6 +306,8 @@ public class GeneticEngine {
         void accept(List<Flight> flights, double fitness, int generation);
     }
 
+
+    // Main GA method
     public int[] run(ProgressCallback onGenerationComplete) {
         initializePopulation();
         FitnessEvaluator evaluator = new FitnessEvaluator(graph, flightRepo, gates);
@@ -312,44 +315,48 @@ public class GeneticEngine {
         double previousBestFitness = -Double.MAX_VALUE;
         int stagnantGenerations = 0;
 
-        for (int i = 0; i < maxGenerations; i++) {
-            while (isPaused) {
+        boolean keepRunning = true;
+        for (int i = 0; i < maxGenerations && keepRunning; i++) {
+            boolean interrupted = false;
+            while (isPaused && !interrupted) {
                 try {
                     Thread.sleep(200);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    break;
+                    interrupted = true;
                 }
             }
-            if (Thread.currentThread().isInterrupted()) {
-                break; // Safe bailout if worker is canceled
+            if (Thread.currentThread().isInterrupted() || interrupted) {
+                keepRunning = false;
             }
 
-            evolve(evaluator);
-            // BN-2: getBestSolution() is now O(1) — population already sorted
-            int[] best = getBestSolution();
-            double currentBestFitness = evaluator.calculateFitness(best, flights);
-            System.out.println("Generation " + i + " | Best Fitness: " + currentBestFitness);
-
-            if (onGenerationComplete != null) {
-                List<Flight> currentBestFlights = new ArrayList<>();
-                for (int j = 0; j < flights.size(); j++) {
-                    Flight copy = getFlight(j, best);
-                    currentBestFlights.add(copy);
+            if (keepRunning) {
+                evolve(evaluator);
+                // BN-2: getBestSolution() is now O(1) — population already sorted
+                int[] best = getBestSolution();
+                double currentBestFitness = evaluator.calculateFitness(best, flights);
+                System.out.println("Generation " + i + " | Best Fitness: " + currentBestFitness);
+    
+                if (onGenerationComplete != null) {
+                    List<Flight> currentBestFlights = new ArrayList<>();
+                    for (int j = 0; j < flights.size(); j++) {
+                        Flight copy = getFlight(j, best);
+                        currentBestFlights.add(copy);
+                    }
+                    onGenerationComplete.accept(currentBestFlights, currentBestFitness, i);
                 }
-                onGenerationComplete.accept(currentBestFlights, currentBestFitness, i);
-            }
-
-            if (currentBestFitness > previousBestFitness) {
-                previousBestFitness = currentBestFitness;
-                stagnantGenerations = 0;
-            } else {
-                stagnantGenerations++;
-            }
-
-            if (stagnantGenerations >= MAX_STAGNANT_GENERATIONS) {
-                System.out.println("[GA] Early stopping triggered. Converged at generation " + i + ".");
-                break;
+    
+                if (currentBestFitness > previousBestFitness) {
+                    previousBestFitness = currentBestFitness;
+                    stagnantGenerations = 0;
+                } else {
+                    stagnantGenerations++;
+                }
+    
+                if (stagnantGenerations >= MAX_STAGNANT_GENERATIONS) {
+                    System.out.println("[GA] Early stopping triggered. Converged at generation " + i + ".");
+                    keepRunning = false;
+                }
             }
         }
 
@@ -422,8 +429,9 @@ public class GeneticEngine {
         //     flight from each overlapping pair
         Map<Integer, List<Integer>> gateToIndices = new HashMap<>();
         for (int i = 0; i < result.length; i++) {
-            if (violatingIndices.contains(i)) continue;
-            gateToIndices.computeIfAbsent(result[i], k -> new ArrayList<>()).add(i);
+            if (!violatingIndices.contains(i)) {
+                gateToIndices.computeIfAbsent(result[i], k -> new ArrayList<>()).add(i);
+            }
         }
         for (List<Integer> indices : gateToIndices.values()) {
             indices.sort(Comparator.comparingInt(i -> flights.get(i).getArrivalTime()));
@@ -461,9 +469,10 @@ public class GeneticEngine {
             gateOccupancy.put(g.getId(), new ArrayList<>());
         }
         for (int i = 0; i < result.length; i++) {
-            if (result[i] == -1) continue;
-            Flight f = flights.get(i);
-            gateOccupancy.get(result[i]).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
+            if (result[i] != -1) {
+                Flight f = flights.get(i);
+                gateOccupancy.get(result[i]).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
+            }
         }
 
         // --- Step 4: Greedy re-assignment from the holding heap ---
@@ -471,47 +480,18 @@ public class GeneticEngine {
         while (!holdingHeap.isEmpty()) {
             Flight f = holdingHeap.extractMin();
             int flightIdx = flightIdToIndex.get(f.getId());
-            boolean assigned = false;
+            boolean assigned = tryAssignExactGate(f, flightIdx, result, gateOccupancy, evaluator);
 
-            // Priority 1: exact-size gate, free during this flight's window
-            for (Gate g : gates) {
-                if (evaluator.getWastedSpaceLevel(g.getSize(), f.getType()) != 0) continue;
-                if (!evaluator.isGateLargeEnough(g.getSize(), f.getType())) continue;
-                if (f.isInternational() != g.isInternational()) continue;
-                if (isFreeSlot(gateOccupancy.get(g.getId()), f)) {
-                    result[flightIdx] = g.getId();
-                    gateOccupancy.get(g.getId()).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
-                    assigned = true;
-                    reassigned++;
-                    break;
-                }
+            if (!assigned) {
+                assigned = tryAssignOversizedGate(f, flightIdx, result, gateOccupancy, evaluator);
             }
 
-            // Priority 2: oversized gate, free during this flight's window
             if (!assigned) {
-                for (Gate g : gates) {
-                    if (!evaluator.isGateLargeEnough(g.getSize(), f.getType())) continue;
-                    if (f.isInternational() != g.isInternational()) continue;
-                    if (isFreeSlot(gateOccupancy.get(g.getId()), f)) {
-                        result[flightIdx] = g.getId();
-                        gateOccupancy.get(g.getId()).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
-                        assigned = true;
-                        reassigned++;
-                        break;
-                    }
-                }
+                assigned = forceAssignGate(f, flightIdx, result, gateOccupancy, evaluator);
             }
 
-            // Priority 3: force-assign to any valid gate (hard violation, prevents unscheduled)
-            if (!assigned) {
-                for (Gate g : gates) {
-                    if (evaluator.isGateLargeEnough(g.getSize(), f.getType())
-                            && f.isInternational() == g.isInternational()) {
-                        result[flightIdx] = g.getId();
-                        gateOccupancy.get(g.getId()).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
-                        break;
-                    }
-                }
+            if (assigned) {
+                reassigned++;
             }
         }
 
@@ -524,6 +504,62 @@ public class GeneticEngine {
         return result;
     }
 
+    private boolean tryAssignExactGate(Flight f, int flightIdx, int[] result, Map<Integer, List<int[]>> gateOccupancy, FitnessEvaluator evaluator) {
+        Iterator<Gate> gateIter = gates.iterator();
+        boolean assigned = false;
+        while (gateIter.hasNext() && !assigned) {
+            Gate g = gateIter.next();
+            boolean exactSize = evaluator.getWastedSpaceLevel(g.getSize(), f.getType()) == 0;
+            boolean largeEnough = evaluator.isGateLargeEnough(g.getSize(), f.getType());
+            boolean rightIntl = f.isInternational() == g.isInternational();
+            
+            if (exactSize && largeEnough && rightIntl) {
+                if (isFreeSlot(gateOccupancy.get(g.getId()), f)) {
+                    result[flightIdx] = g.getId();
+                    gateOccupancy.get(g.getId()).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
+                    assigned = true;
+                }
+            }
+        }
+        return assigned;
+    }
+
+    private boolean tryAssignOversizedGate(Flight f, int flightIdx, int[] result, Map<Integer, List<int[]>> gateOccupancy, FitnessEvaluator evaluator) {
+        Iterator<Gate> gateIter = gates.iterator();
+        boolean assigned = false;
+        while (gateIter.hasNext() && !assigned) {
+            Gate g = gateIter.next();
+            boolean largeEnough = evaluator.isGateLargeEnough(g.getSize(), f.getType());
+            boolean rightIntl = f.isInternational() == g.isInternational();
+            
+            if (largeEnough && rightIntl) {
+                if (isFreeSlot(gateOccupancy.get(g.getId()), f)) {
+                    result[flightIdx] = g.getId();
+                    gateOccupancy.get(g.getId()).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
+                    assigned = true;
+                }
+            }
+        }
+        return assigned;
+    }
+
+    private boolean forceAssignGate(Flight f, int flightIdx, int[] result, Map<Integer, List<int[]>> gateOccupancy, FitnessEvaluator evaluator) {
+        Iterator<Gate> gateIter = gates.iterator();
+        boolean assigned = false;
+        while (gateIter.hasNext() && !assigned) {
+            Gate g = gateIter.next();
+            boolean largeEnough = evaluator.isGateLargeEnough(g.getSize(), f.getType());
+            boolean rightIntl = f.isInternational() == g.isInternational();
+            
+            if (largeEnough && rightIntl) {
+                result[flightIdx] = g.getId();
+                gateOccupancy.get(g.getId()).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
+                assigned = true;
+            }
+        }
+        return assigned;
+    }
+
     /**
      * Checks whether a flight can occupy a gate slot without causing a time
      * overlap with any already-scheduled flight. Includes the 15-minute
@@ -534,8 +570,7 @@ public class GeneticEngine {
             // interval[0] = arrivalTime, interval[1] = departureTime
             // Conflict if the new flight's window overlaps the existing window
             // including the 15-minute turnaround buffer on each departure
-            if (f.getArrivalTime() < interval[1] + 15
-                    && interval[0] < f.getDepartureTime() + 15) {
+            if (!(f.getArrivalTime() >= interval[1] + 15 || interval[0] >= f.getDepartureTime() + 15)) {
                 return false;
             }
         }

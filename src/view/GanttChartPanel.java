@@ -199,77 +199,79 @@ public class GanttChartPanel extends JPanel {
         int blockPaddingY = 4; // Padding top and bottom within the row
 
         for (FlightBlock flight : flightBlocks) {
-            // Ignore flights outside our drawn timeline window completely
-            if (flight.endMinute < (START_HOUR * 60) || flight.startMinute > (END_HOUR * 60)) {
-                continue;
+            // Draw only flights within our drawn timeline window completely
+            if (!(flight.endMinute < (START_HOUR * 60) || flight.startMinute > (END_HOUR * 60))) {
+                drawFlightBlock(g2d, flight, rowHeight, pixelsPerMinute, fm, blockPaddingY);
             }
+        }
+    }
 
-            // Map and limit drawing bounds so blocks don't hang off the edge
-            int drawStartMin = Math.max(flight.startMinute, START_HOUR * 60);
-            int drawEndMin = Math.min(flight.endMinute, END_HOUR * 60);
+    private void drawFlightBlock(Graphics2D g2d, FlightBlock flight, double rowHeight, double pixelsPerMinute, FontMetrics fm, int blockPaddingY) {
+        // Map and limit drawing bounds so blocks don't hang off the edge
+        int drawStartMin = Math.max(flight.startMinute, START_HOUR * 60);
+        int drawEndMin = Math.min(flight.endMinute, END_HOUR * 60);
 
-            // Calculate exact position mapped to minutes
-            int xStart = MARGIN_LEFT + (int) ((drawStartMin - (START_HOUR * 60)) * pixelsPerMinute);
-            int xEnd = MARGIN_LEFT + (int) ((drawEndMin - (START_HOUR * 60)) * pixelsPerMinute);
-            int blockWidth = Math.max(xEnd - xStart, 5); // Ensure tiny flights are still slightly visible
+        // Calculate exact position mapped to minutes
+        int xStart = MARGIN_LEFT + (int) ((drawStartMin - (START_HOUR * 60)) * pixelsPerMinute);
+        int xEnd = MARGIN_LEFT + (int) ((drawEndMin - (START_HOUR * 60)) * pixelsPerMinute);
+        int blockWidth = Math.max(xEnd - xStart, 5); // Ensure tiny flights are still slightly visible
 
-            int yPos = MARGIN_TOP + (int) (flight.gateRow * rowHeight) + blockPaddingY;
-            int blockHeight = (int) rowHeight - (blockPaddingY * 2);
+        int yPos = MARGIN_TOP + (int) (flight.gateRow * rowHeight) + blockPaddingY;
+        int blockHeight = (int) rowHeight - (blockPaddingY * 2);
 
-            // Draw Rounded Rectangle Block (Color changes if it's a collision overlap)
-            Color blockColor = flight.isCollision ? new Color(239, 68, 68) : flight.color; // #ef4444 Red
-            g2d.setColor(blockColor);
-            RoundRectangle2D rect = new RoundRectangle2D.Float(xStart, yPos, blockWidth, blockHeight, 10, 10);
-            g2d.fill(rect);
+        // Draw Rounded Rectangle Block (Color changes if it's a collision overlap)
+        Color blockColor = flight.isCollision ? new Color(239, 68, 68) : flight.color; // #ef4444 Red
+        g2d.setColor(blockColor);
+        RoundRectangle2D rect = new RoundRectangle2D.Float(xStart, yPos, blockWidth, blockHeight, 10, 10);
+        g2d.fill(rect);
 
-            // Draw thick Collision Border
-            if (flight.isCollision) {
-                g2d.setColor(Color.YELLOW);
-                Stroke oldStroke = g2d.getStroke();
-                g2d.setStroke(new BasicStroke(2.0f));
-                g2d.draw(rect);
-                g2d.setStroke(oldStroke);
-            }
+        // Draw thick Collision Border
+        if (flight.isCollision) {
+            g2d.setColor(Color.YELLOW);
+            Stroke oldStroke = g2d.getStroke();
+            g2d.setStroke(new BasicStroke(2.0f));
+            g2d.draw(rect);
+            g2d.setStroke(oldStroke);
+        }
 
-            // Draw Flight Text
-            g2d.setColor(TEXT_PRIMARY);
-            String arrMin = String.format("%02d", flight.startMinute % 60);
-            int hourDiff = (flight.endMinute / 60) - (flight.startMinute / 60);
-            String depMin = String.format("%02d", flight.endMinute % 60) + (hourDiff > 0 ? " +" + hourDiff : "");
-            String timeStr = arrMin + "->" + depMin;
+        // Draw Flight Text
+        g2d.setColor(TEXT_PRIMARY);
+        String arrMin = String.format("%02d", flight.startMinute % 60);
+        int hourDiff = (flight.endMinute / 60) - (flight.startMinute / 60);
+        String depMin = String.format("%02d", flight.endMinute % 60) + (hourDiff > 0 ? " +" + hourDiff : "");
+        String timeStr = arrMin + "->" + depMin;
 
-            String codeSizeStr = flight.flightCode + " (" + flight.planeType + ")";
-            String singleLineFull = codeSizeStr + " " + timeStr;
-            String singleLineMedium = flight.flightCode + " " + timeStr;
+        String codeSizeStr = flight.flightCode + " (" + flight.planeType + ")";
+        String singleLineFull = codeSizeStr + " " + timeStr;
+        String singleLineMedium = flight.flightCode + " " + timeStr;
 
-            int fullWidth = fm.stringWidth(singleLineFull);
-            int mediumWidth = fm.stringWidth(singleLineMedium);
-            int codeWidth = fm.stringWidth(flight.flightCode);
-            int timeWidth = fm.stringWidth(timeStr);
+        int fullWidth = fm.stringWidth(singleLineFull);
+        int mediumWidth = fm.stringWidth(singleLineMedium);
+        int codeWidth = fm.stringWidth(flight.flightCode);
+        int timeWidth = fm.stringWidth(timeStr);
 
-            int fontHeight = fm.getAscent();
+        int fontHeight = fm.getAscent();
 
-            if (fullWidth + 10 < blockWidth) {
-                // Fits all on one line
-                int textX = xStart + (blockWidth - fullWidth) / 2;
-                int textY = yPos + (blockHeight / 2) + (fontHeight / 2) - 2;
-                g2d.drawString(singleLineFull, textX, textY);
-            } else if (mediumWidth + 10 < blockWidth) {
-                // Fits medium on one line
-                int textX = xStart + (blockWidth - mediumWidth) / 2;
-                int textY = yPos + (blockHeight / 2) + (fontHeight / 2) - 2;
-                g2d.drawString(singleLineMedium, textX, textY);
-            } else {
-                // Two lines: Code on top, Time on bottom (Forced for all other sizes)
-                int textXCode = xStart + (blockWidth - codeWidth) / 2;
-                int textXTime = xStart + (blockWidth - timeWidth) / 2;
+        if (fullWidth + 10 < blockWidth) {
+            // Fits all on one line
+            int textX = xStart + (blockWidth - fullWidth) / 2;
+            int textY = yPos + (blockHeight / 2) + (fontHeight / 2) - 2;
+            g2d.drawString(singleLineFull, textX, textY);
+        } else if (mediumWidth + 10 < blockWidth) {
+            // Fits medium on one line
+            int textX = xStart + (blockWidth - mediumWidth) / 2;
+            int textY = yPos + (blockHeight / 2) + (fontHeight / 2) - 2;
+            g2d.drawString(singleLineMedium, textX, textY);
+        } else {
+            // Two lines: Code on top, Time on bottom (Forced for all other sizes)
+            int textXCode = xStart + (blockWidth - codeWidth) / 2;
+            int textXTime = xStart + (blockWidth - timeWidth) / 2;
 
-                int textYCode = yPos + (blockHeight / 2) - 2;
-                int textYTime = yPos + (blockHeight / 2) + fontHeight - 2;
+            int textYCode = yPos + (blockHeight / 2) - 2;
+            int textYTime = yPos + (blockHeight / 2) + fontHeight - 2;
 
-                g2d.drawString(flight.flightCode, textXCode, textYCode);
-                g2d.drawString(timeStr, textXTime, textYTime);
-            }
+            g2d.drawString(flight.flightCode, textXCode, textYCode);
+            g2d.drawString(timeStr, textXTime, textYTime);
         }
     }
 
