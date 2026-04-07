@@ -40,6 +40,7 @@ public class AirportDashboardFrame extends JFrame {
     private JLabel lblAssigned = new JLabel("0");
     private JLabel lblHolding = new JLabel("0");
     private JLabel lblFitness = new JLabel("0");
+    private JLabel lblFitnessTitle = new JLabel("Fitness Score");
     private JLabel lblGeneration = new JLabel("0");
 
     private JButton btnStartSimulation;
@@ -184,7 +185,7 @@ public class AirportDashboardFrame extends JFrame {
         statsPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         statsPanel.add(createStatRow("Holding", lblHolding));
         statsPanel.add(Box.createRigidArea(new Dimension(0, 12)));
-        statsPanel.add(createStatRow("Fitness Score", lblFitness));
+        statsPanel.add(createStatRow(lblFitnessTitle, lblFitness));
         statsPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         statsPanel.add(createStatRow("Current Generation", lblGeneration));
 
@@ -193,11 +194,14 @@ public class AirportDashboardFrame extends JFrame {
     }
 
     private JPanel createStatRow(String labelText, JLabel lblValue) {
+        return createStatRow(new JLabel(labelText), lblValue);
+    }
+
+    private JPanel createStatRow(JLabel lblTitle, JLabel lblValue) {
         JPanel row = new JPanel(new BorderLayout());
         row.setBackground(BG_PANEL);
         row.setMaximumSize(new Dimension(230, 50));
 
-        JLabel lblTitle = new JLabel(labelText);
         lblTitle.setForeground(TEXT_SECONDARY);
         lblTitle.setFont(new Font("SansSerif", Font.PLAIN, 13));
 
@@ -485,6 +489,7 @@ public class AirportDashboardFrame extends JFrame {
 
                     btnStartSimulation.setText("Simulating...");
                     btnTriggerDelay.setEnabled(true);
+                    lblFitnessTitle.setText("Final Fitness Score");
                 } catch (Exception e) {
                     e.printStackTrace();
                     JOptionPane.showMessageDialog(AirportDashboardFrame.this, "Simulation error: " + e.getMessage(),
@@ -544,6 +549,7 @@ public class AirportDashboardFrame extends JFrame {
         lblAssigned.setText("0");
         lblHolding.setText("0");
         lblFitness.setText("0");
+        lblFitnessTitle.setText("Fitness Score");
         lblGeneration.setText("0");
 
         if (simulationClock != null) {

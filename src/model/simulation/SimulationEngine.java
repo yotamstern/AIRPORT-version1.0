@@ -79,13 +79,21 @@ public class SimulationEngine {
         holding.sort((a, b) -> Double.compare(b.getUrgencyScore(), a.getUrgencyScore()));
 
         for (Flight f : holding) {
-            for (Gate g : gates) {
-                if (g.isInternational() != f.isInternational()) continue;
-                if (!isGateLargeEnough(g.getSize(), f.getType())) continue;
-                if (!isFreeSlot(occupancy.get(g.getId()), f)) continue;
-                f.setAssignedGate(g);
-                occupancy.get(g.getId()).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
-                break;
+            boolean assigned = false;
+            int i = 0;
+            while (!assigned && i < gates.size()) {
+                Gate g = gates.get(i);
+                boolean isInternationalMatch = g.isInternational() == f.isInternational();
+                boolean isLargeEnough = isGateLargeEnough(g.getSize(), f.getType());
+                boolean hasFreeSlot = isFreeSlot(occupancy.get(g.getId()), f);
+
+                if (isInternationalMatch && isLargeEnough && hasFreeSlot) {
+                    f.setAssignedGate(g);
+                    occupancy.get(g.getId()).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
+                    assigned = true;
+                } else {
+                    i++;
+                }
             }
         }
     }
@@ -221,35 +229,39 @@ public class SimulationEngine {
     private void resolveConflictsToHolding() {
         Map<Integer, List<Flight>> byGate = new HashMap<>();
         for (Flight f : flights) {
-            if (f.getAssignedGate() == null) continue;
-            if (f.getState() instanceof AtGateState
-                    || f.getState() instanceof LandedState
-                    || f.getState() instanceof DepartedState) continue;
-            byGate.computeIfAbsent(f.getAssignedGate().getId(), k -> new ArrayList<>()).add(f);
+            if (f.getAssignedGate() != null && !(f.getState() instanceof AtGateState)
+                    && !(f.getState() instanceof LandedState)
+                    && !(f.getState() instanceof DepartedState)) {
+                byGate.computeIfAbsent(f.getAssignedGate().getId(), k -> new ArrayList<>()).add(f);
+            }
         }
 
         for (List<Flight> gateFlights : byGate.values()) {
             gateFlights.sort(Comparator.comparingInt(Flight::getArrivalTime));
             Flight lastValid = gateFlights.get(0);
             for (int k = 1; k < gateFlights.size(); k++) {
-                Flight curr = gateFlights.get(k);
-                if (curr.getArrivalTime() < lastValid.getDepartureTime()) {
-                    // Real overlap — evict the lower-urgency flight to holding
-                    if (curr.getUrgencyScore() >= lastValid.getUrgencyScore()) {
-                        System.out.println("[Validator] Conflict: " + lastValid.getFlightCode()
-                                + " evicted to holding (overlap with " + curr.getFlightCode() + ")");
-                        lastValid.setAssignedGate(null);
-                        lastValid = curr;
-                    } else {
-                        System.out.println("[Validator] Conflict: " + curr.getFlightCode()
-                                + " evicted to holding (overlap with " + lastValid.getFlightCode() + ")");
-                        curr.setAssignedGate(null);
-                    }
-                } else {
-                    lastValid = curr;
-                }
+                lastValid = processOverlap(lastValid, gateFlights.get(k));
             }
         }
+    }
+
+    private Flight processOverlap(Flight lastValid, Flight curr) {
+        if (curr.getArrivalTime() >= lastValid.getDepartureTime()) {
+            return curr;
+        }
+
+        // Real overlap — evict the lower-urgency flight to holding
+        if (curr.getUrgencyScore() >= lastValid.getUrgencyScore()) {
+            System.out.println("[Validator] Conflict: " + lastValid.getFlightCode()
+                    + " evicted to holding (overlap with " + curr.getFlightCode() + ")");
+            lastValid.setAssignedGate(null);
+            return curr;
+        }
+
+        System.out.println("[Validator] Conflict: " + curr.getFlightCode()
+                + " evicted to holding (overlap with " + lastValid.getFlightCode() + ")");
+        curr.setAssignedGate(null);
+        return lastValid;
     }
 
     // -------------------------------------------------------------------------
