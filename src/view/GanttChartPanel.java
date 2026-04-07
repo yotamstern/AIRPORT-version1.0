@@ -34,6 +34,12 @@ public class GanttChartPanel extends JPanel {
     private static final int MARGIN_BOTTOM = 20;
 
     private List<FlightBlock> flightBlocks;
+    private int currentTime = -1; // -1 means no cursor drawn
+
+    public void setCurrentTime(int time) {
+        this.currentTime = time;
+        repaint();
+    }
 
     public GanttChartPanel() {
         setBackground(BG_PANEL);
@@ -110,6 +116,28 @@ public class GanttChartPanel extends JPanel {
 
         drawGridAndAxes(g2d, drawWidth, height, ROW_HEIGHT, pixelsPerMinute);
         drawFlights(g2d, ROW_HEIGHT, pixelsPerMinute);
+        if (currentTime >= 0) {
+            drawTimeCursor(g2d, height, pixelsPerMinute);
+        }
+    }
+
+    private void drawTimeCursor(Graphics2D g2d, int panelHeight, double pixelsPerMinute) {
+        int xPos = MARGIN_LEFT + (int) ((currentTime - START_HOUR * 60) * pixelsPerMinute);
+        if (xPos < MARGIN_LEFT || xPos > getWidth() - MARGIN_RIGHT) return;
+
+        Stroke old = g2d.getStroke();
+        g2d.setStroke(new BasicStroke(2.0f));
+        g2d.setColor(new Color(239, 68, 68)); // #ef4444 red
+        g2d.drawLine(xPos, MARGIN_TOP, xPos, panelHeight - MARGIN_BOTTOM);
+
+        // Small label showing current time
+        int h = currentTime / 60;
+        int m = currentTime % 60;
+        String label = String.format("%02d:%02d", h, m);
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 10));
+        g2d.setColor(new Color(239, 68, 68));
+        g2d.drawString(label, xPos + 3, MARGIN_TOP - 2);
+        g2d.setStroke(old);
     }
 
     private void drawGridAndAxes(Graphics2D g2d, int drawWidth, int panelHeight, double rowHeight,

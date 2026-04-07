@@ -20,6 +20,8 @@ import model.algo.genetic.FitnessEvaluator;
 import model.algo.genetic.GeneticEngine;
 import model.enums.GateSize;
 import model.enums.PlaneType;
+import model.simulation.SimulationClock;
+import model.simulation.SimulationEngine;
 import model.spatial.TerminalGraph;
 
 public class AirportDashboardFrame extends JFrame {
@@ -52,6 +54,14 @@ public class AirportDashboardFrame extends JFrame {
     private GeneticEngine currentEngine;
     private List<Gate> systemGates;
 
+    // Simulation state
+    private SimulationEngine simulationEngine;
+    private SimulationClock simulationClock;
+    private TerminalGraph systemGraph;
+    private FlightRepository systemRepo;
+    private int[] lastBestSolution;
+    private JButton btnTriggerDelay;
+
     public AirportDashboardFrame() {
         // Frame Configuration
         setTitle("Airport Scheduling System - View Layer");
@@ -80,7 +90,6 @@ public class AirportDashboardFrame extends JFrame {
         rightSidebar.add(createStatsPanel());
         rightSidebar.add(Box.createRigidArea(new Dimension(0, 15)));
         rightSidebar.add(createLegendPanel());
-
         return rightSidebar;
     }
 
@@ -100,8 +109,11 @@ public class AirportDashboardFrame extends JFrame {
         btnReset = createStyledButton("Reset", new Color(75, 85, 99), false); // #4b5563
         btnReset.addActionListener(e -> resetSimulation());
 
+        btnTriggerDelay = createStyledButton("Trigger Delay", BTN_RED_, false);
+        btnTriggerDelay.addActionListener(e -> triggerDelay());
+
         controlPanel.add(btnStartSimulation);
-        controlPanel.add(createStyledButton("Trigger Delay", BTN_RED_, false));
+        controlPanel.add(btnTriggerDelay);
         controlPanel.add(btnPause);
         controlPanel.add(btnReset);
 
@@ -236,11 +248,9 @@ public class AirportDashboardFrame extends JFrame {
         return centerContent;
     }
 
-    private void updateHoldingPanel(PriorityQueue<Flight> holdingFlights) {
+    private void updateHoldingPanel(java.util.Collection<Flight> holdingFlights) {
         holdingPanel.removeAll();
-        PriorityQueue<Flight> copy = new PriorityQueue<>(holdingFlights);
-        while (!copy.isEmpty()) {
-            Flight f = copy.poll();
+        for (Flight f : holdingFlights) {
             String arrTime = String.format("%02d:%02d", f.getArrivalTime() / 60, f.getArrivalTime() % 60);
             String depTime = String.format("%02d:%02d", f.getDepartureTime() / 60, f.getDepartureTime() % 60);
             String intStatus = f.isInternational() ? "(I)" : "(D)";
@@ -348,7 +358,6 @@ public class AirportDashboardFrame extends JFrame {
         lblHolding.setText(String.valueOf(currentHolding));
         lblFitness.setText(String.format("%.0f", fitnessScore));
 
-
         if (currentGeneration != -1) {
             lblGeneration.setText(String.valueOf(currentGeneration));
         } else {
@@ -374,6 +383,8 @@ public class AirportDashboardFrame extends JFrame {
                 List<Gate> gates = new ArrayList<>();
                 systemGates = gates;
                 TerminalGraph graph = new TerminalGraph();
+                systemGraph = graph;
+                systemRepo = repo;
 
                 int gateIdCounter = 1;
                 // Gates 1-10: SMALL, Domestic
@@ -423,7 +434,8 @@ public class AirportDashboardFrame extends JFrame {
 
                 currentEngine = new GeneticEngine(repo, gates, graph);
                 currentEngine.setParameters(100, 0.05, 500); // Massive constraints limit for fast UI response
-                int[] bestSolution = currentEngine.run((progressFlights, currentFitness, generation) -> {
+                int[] bestSolution;
+                bestSolution = currentEngine.run((progressFlights, currentFitness, generation) -> {
                     SwingUtilities
                             .invokeLater(() -> processAndDisplayFlights(progressFlights, currentFitness, generation));
                 });
@@ -433,13 +445,17 @@ public class AirportDashboardFrame extends JFrame {
                 finalFitness = evaluator.calculateFitness(bestSolution, finalFlights);
 
                 // Map GA Array directly to the Flight Models
+                // gateId = 0 means the sweeper left this flight unassigned (no clean slot).
+                // assignedGate stays null → LandedState will route it to HoldingState.
                 for (int i = 0; i < finalFlights.size(); i++) {
                     int gateId = bestSolution[i];
-                    Gate assigned = gates.get(gateId - 1);
                     Flight f = finalFlights.get(i);
-                    f.setAssignedGate(assigned);
+                    if (gateId > 0) {
+                        f.setAssignedGate(gates.get(gateId - 1));
+                    }
                 }
 
+                lastBestSolution = bestSolution;
                 return null;
             }
 
@@ -450,11 +466,29 @@ public class AirportDashboardFrame extends JFrame {
                         return;
                     get(); // Wait and catch potential worker errors
                     processAndDisplayFlights(finalFlights, finalFitness, -1);
+
+                    // --- Launch FSM simulation ---
+                    simulationEngine = new SimulationEngine(
+                            finalFlights, systemGates, systemGraph, lastBestSolution);
+                    simulationEngine.setOnRepairComplete(AirportDashboardFrame.this::refreshSimulationUI);
+                    simulationEngine.validateInitialSchedule(); // guarantee zero collisions before clock starts
+
+                    int startTime = finalFlights.stream()
+                            .mapToInt(Flight::getArrivalTime).min().orElse(360) - 60;
+
+                    simulationClock = new SimulationClock(Math.max(startTime, 0), t -> {
+                        simulationEngine.tick(t);
+                        ganttChartPanel.setCurrentTime(t);
+                        AirportDashboardFrame.this.refreshSimulationUI();
+                    });
+                    simulationClock.start();
+
+                    btnStartSimulation.setText("Simulating...");
+                    btnTriggerDelay.setEnabled(true);
                 } catch (Exception e) {
                     e.printStackTrace();
                     JOptionPane.showMessageDialog(AirportDashboardFrame.this, "Simulation error: " + e.getMessage(),
                             "Error", JOptionPane.ERROR_MESSAGE);
-                } finally {
                     btnStartSimulation.setText("Start Simulation");
                     btnStartSimulation.setEnabled(true);
                 }
@@ -465,17 +499,34 @@ public class AirportDashboardFrame extends JFrame {
     }
 
     private void togglePause() {
-        if (currentEngine == null)
+        boolean nowPaused;
+        if (simulationClock != null) {
+            // Simulation phase: pause/resume the clock
+            if (simulationClock.isRunning()) {
+                simulationClock.pause();
+                nowPaused = true;
+            } else {
+                simulationClock.resume();
+                nowPaused = false;
+            }
+        } else if (currentEngine != null) {
+            // GA phase: pause/resume the engine
+            if (currentEngine.isPaused()) {
+                currentEngine.resumeEngine();
+                nowPaused = false;
+            } else {
+                currentEngine.pauseEngine();
+                nowPaused = true;
+            }
+        } else {
             return;
-
-        if (currentEngine.isPaused()) {
-            currentEngine.resumeEngine();
+        }
+        if (nowPaused) {
+            btnPause.setText("Resume");
+            btnPause.setBackground(new Color(16, 185, 129));
+        } else {
             btnPause.setText("Pause");
             btnPause.setBackground(BTN_BASIC);
-        } else {
-            currentEngine.pauseEngine();
-            btnPause.setText("Resume");
-            btnPause.setBackground(new Color(16, 185, 129)); // #10b981 Emerald Green
         }
     }
 
@@ -495,14 +546,91 @@ public class AirportDashboardFrame extends JFrame {
         lblFitness.setText("0");
         lblGeneration.setText("0");
 
+        if (simulationClock != null) {
+            simulationClock.pause();
+            simulationClock = null;
+        }
+        simulationEngine = null;
+        ganttChartPanel.setCurrentTime(-1);
+
         btnStartSimulation.setText("Start Simulation");
         btnStartSimulation.setEnabled(true);
+        btnTriggerDelay.setEnabled(false);
 
         btnPause.setText("Pause");
         btnPause.setBackground(BTN_BASIC);
     }
 
-    private PriorityQueue<Flight> runGreedyRepair(PriorityQueue<Flight> holdingFlights, Map<Integer, List<Flight>> gateMap) {
+    // -------------------------------------------------------------------------
+    // Simulation helpers
+    // -------------------------------------------------------------------------
+
+    private void refreshSimulationUI() {
+        if (simulationEngine == null) return;
+        ganttChartPanel.updateSchedule(simulationEngine.getFlights());
+        lblAssigned.setText(String.valueOf(simulationEngine.getAtGateCount()));
+        lblHolding.setText(String.valueOf(simulationEngine.getHoldingCount()));
+        updateHoldingPanel(simulationEngine.getHoldingFlights());
+    }
+
+    private void triggerDelay() {
+        if (simulationEngine == null || simulationClock == null) return;
+        simulationClock.pause();
+        btnPause.setText("Resume");
+        btnPause.setBackground(new Color(16, 185, 129));
+
+        List<Flight> delayable = simulationEngine.getDelayableFlights();
+        if (delayable.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No delayable flights.\nOnly Planned or Approaching flights can be delayed.");
+            simulationClock.resume();
+            btnPause.setText("Pause");
+            btnPause.setBackground(BTN_BASIC);
+            return;
+        }
+
+        JSpinner spinner = new JSpinner(new SpinnerNumberModel(30, 15, 120, 15));
+
+        JComboBox<Flight> combo = new JComboBox<>(delayable.toArray(new Flight[0]));
+        combo.setRenderer((list, value, idx, sel, focus) -> {
+            int h = value.getArrivalTime() / 60, m = value.getArrivalTime() % 60;
+            boolean approaching = value.getState() instanceof model.state.ApproachingState;
+            String stateLabel = approaching ? " [Approaching]" : " [Planned]";
+            return new JLabel(value.getFlightCode()
+                    + "  arrives " + String.format("%02d:%02d", h, m) + stateLabel);
+        });
+        // Adjust spinner cap dynamically based on selected flight's state
+        combo.addActionListener(ev -> {
+            Flight sel = (Flight) combo.getSelectedItem();
+            if (sel == null) return;
+            boolean approaching = sel.getState() instanceof model.state.ApproachingState;
+            int max = approaching ? 30 : 120;
+            int cur = approaching ? 30 : Math.min((Integer) spinner.getValue(), 120);
+            spinner.setModel(new SpinnerNumberModel(cur, 15, max, 15));
+        });
+        // Fire immediately to initialise the spinner for the pre-selected item
+        combo.getActionListeners()[0].actionPerformed(null);
+
+        JPanel panel = new JPanel(new GridLayout(2, 2, 5, 5));
+        panel.add(new JLabel("Flight:"));   panel.add(combo);
+        panel.add(new JLabel("Delay (min):")); panel.add(spinner);
+
+        int result = JOptionPane.showConfirmDialog(this, panel,
+                "Trigger Delay", JOptionPane.OK_CANCEL_OPTION);
+        if (result == JOptionPane.OK_OPTION) {
+            Flight selected = (Flight) combo.getSelectedItem();
+            int delayMinutes = (Integer) spinner.getValue();
+            System.out.println("[Delay] " + selected.getFlightCode()
+                    + " delayed by " + delayMinutes + " min");
+            simulationEngine.applyDelay(selected, delayMinutes);
+        }
+
+        simulationClock.resume();
+        btnPause.setText("Pause");
+        btnPause.setBackground(BTN_BASIC);
+    }
+
+    private PriorityQueue<Flight> runGreedyRepair(PriorityQueue<Flight> holdingFlights,
+            Map<Integer, List<Flight>> gateMap) {
         PriorityQueue<Flight> stillHolding = new PriorityQueue<>(holdingFlights.comparator());
         while (!holdingFlights.isEmpty()) {
             Flight f = holdingFlights.poll();
@@ -521,7 +649,7 @@ public class AirportDashboardFrame extends JFrame {
             if (isGateLargeEnough(gate.getSize(), f.getType()) && gate.isInternational() == f.isInternational()) {
                 int gateId = gate.getId();
                 List<Flight> assignedToGate = gateMap.getOrDefault(gateId, new ArrayList<>());
-                
+
                 if (canFitInGate(f, assignedToGate)) {
                     f.setAssignedGate(gate);
                     assignedToGate.add(f);
@@ -538,7 +666,8 @@ public class AirportDashboardFrame extends JFrame {
         java.util.Iterator<Flight> existingIter = assignedToGate.iterator();
         while (existingIter.hasNext()) {
             Flight existingFlight = existingIter.next();
-            if (!(f.getDepartureTime() <= existingFlight.getArrivalTime() || f.getArrivalTime() >= existingFlight.getDepartureTime())) {
+            if (!(f.getDepartureTime() <= existingFlight.getArrivalTime()
+                    || f.getArrivalTime() >= existingFlight.getDepartureTime())) {
                 return false;
             }
         }

@@ -20,9 +20,10 @@ public class AtGateState implements FlightState {
     public void update(Flight f, int currentTime) {
         // Flight is parked.
         // Could transition to a DepartedState in future phases if needed.
-        if (f.getDepartureTime() >= currentTime){
+        if (currentTime >= f.getDepartureTime()){
             if(f.getAssignedGate() != null) {
                 f.getAssignedGate().setStatus(GateStatus.FREE);
+                f.setAssignedGate(null); // Free the reference so the Gantt removes the block
             }
             f.setState(new DepartedState());
         }

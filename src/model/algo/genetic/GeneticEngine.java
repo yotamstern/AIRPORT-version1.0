@@ -36,6 +36,9 @@ public class GeneticEngine {
     // Concurrency Controls (Phase 11)
     private volatile boolean isPaused = false;
 
+    // Repair mode: genes at these indices must not be mutated or crossed-over
+    private Set<Integer> lockedIndices = Collections.emptySet();
+
     // GA Parameters (Instance variables for Parameter Tuning)
     private int populationSize = 100;
     private double mutationRate = 0.05;
@@ -93,6 +96,69 @@ public class GeneticEngine {
         this.populationSize = populationSize;
         this.mutationRate = mutationRate;
         this.maxGenerations = maxGenerations;
+    }
+
+    /**
+     * Warm-Start Micro-GA: repairs a schedule after a delay is injected.
+     * Locked genes (past/committed flights) are never mutated or crossed-over.
+     * The population is seeded from the current best chromosome, so the GA
+     * starts near-optimal and only needs a small number of generations.
+     *
+     * @param baseChromosome   The current schedule (may contain a new collision).
+     * @param lockedIndices    Flight indices whose gate assignments must not change.
+     * @return The repaired chromosome.
+     */
+    public int[] runRepair(int[] baseChromosome, Set<Integer> lockedIndices) {
+        this.lockedIndices = lockedIndices;
+        initializeWarmPopulation(baseChromosome);
+        FitnessEvaluator evaluator = new FitnessEvaluator(graph, flightRepo, gates);
+
+        double previousBest = -Double.MAX_VALUE;
+        int stagnant = 0;
+
+        for (int i = 0; i < maxGenerations; i++) {
+            evolve(evaluator);
+            int[] best = getBestSolution();
+            double fitness = evaluator.calculateFitness(best, flights);
+            System.out.println("[Micro-GA] Generation " + i + " | Fitness: " + fitness);
+
+            if (fitness > previousBest) {
+                previousBest = fitness;
+                stagnant = 0;
+            } else {
+                stagnant++;
+            }
+            if (stagnant >= MAX_STAGNANT_GENERATIONS) {
+                System.out.println("[Micro-GA] Converged at generation " + i + ".");
+                break;
+            }
+        }
+
+        this.lockedIndices = Collections.emptySet();
+        return getBestSolution().clone();
+    }
+
+    /**
+     * Seeds a warm population from a base chromosome.
+     * Every chromosome starts as a clone of the base, then unlocked genes are
+     * randomly perturbed (30% chance each) so the population has diversity
+     * without losing the near-optimal starting point.
+     */
+    private void initializeWarmPopulation(int[] base) {
+        population = new ArrayList<>();
+        // Chromosome 0: exact base (the current schedule, possibly with a collision)
+        population.add(base.clone());
+
+        while (population.size() < populationSize) {
+            int[] chrom = base.clone();
+            for (int i = 0; i < chrom.length; i++) {
+                if (!lockedIndices.contains(i) && rand.nextDouble() < 0.3) {
+                    List<Gate> valid = getValidGates(flights.get(i));
+                    chrom[i] = valid.get(rand.nextInt(valid.size())).getId();
+                }
+            }
+            population.add(chrom);
+        }
     }
 
     private void initializePopulation() {
@@ -189,7 +255,10 @@ public class GeneticEngine {
         int end = Math.max(point1, point2);
 
         for (int i = 0; i < n; i++) {
-            if (i >= start && i <= end) {
+            // Locked genes always come from p1 (the stable parent)
+            if (lockedIndices.contains(i)) {
+                child[i] = p1[i];
+            } else if (i >= start && i <= end) {
                 child[i] = p2[i]; // Swap segment from P2
             } else {
                 child[i] = p1[i]; // Rest from P1
@@ -227,6 +296,8 @@ public class GeneticEngine {
             // 50% chance to do Conflict-Directed Mutation
             if (rand.nextDouble() < 0.5) {
                 List<Integer> conflicts = getConflictIndices(child);
+                // Filter out locked flights
+                conflicts.removeIf(lockedIndices::contains);
                 if (!conflicts.isEmpty()) {
                     int indexToMutate = conflicts.get(rand.nextInt(conflicts.size()));
                     Flight f = flights.get(indexToMutate);
@@ -236,8 +307,9 @@ public class GeneticEngine {
                 }
             }
 
-            // Fallback: Random mutation on any gene
+            // Fallback: Random mutation on any unlocked gene
             int index = rand.nextInt(child.length);
+            if (lockedIndices.contains(index)) return;
             Flight f = flights.get(index);
             List<Gate> validGates = getValidGates(f);
             child[index] = validGates.get(rand.nextInt(validGates.size())).getId();
@@ -469,7 +541,7 @@ public class GeneticEngine {
             gateOccupancy.put(g.getId(), new ArrayList<>());
         }
         for (int i = 0; i < result.length; i++) {
-            if (result[i] != -1) {
+            if (result[i] > 0) {
                 Flight f = flights.get(i);
                 gateOccupancy.get(result[i]).add(new int[]{f.getArrivalTime(), f.getDepartureTime()});
             }
@@ -486,12 +558,14 @@ public class GeneticEngine {
                 assigned = tryAssignOversizedGate(f, flightIdx, result, gateOccupancy, evaluator);
             }
 
-            if (!assigned) {
-                assigned = forceAssignGate(f, flightIdx, result, gateOccupancy, evaluator);
-            }
-
             if (assigned) {
                 reassigned++;
+            } else {
+                // No clean slot found — leave unassigned (sentinel 0).
+                // LandedState will route this flight to HoldingState in simulation.
+                result[flightIdx] = 0;
+                System.out.println("[Sweeper] " + f.getFlightCode()
+                        + " left unassigned — will enter HoldingState.");
             }
         }
 
