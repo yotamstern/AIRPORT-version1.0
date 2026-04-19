@@ -1,90 +1,69 @@
-# GA Assignment Algorithm: Performance Optimization Plan
+# GA Gate Assignment: Performance Fixes
 
-## Background
+## What's slow and why
 
-The assignment algorithm is a Genetic Algorithm (GA) in [GeneticEngine.java](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java) that evolves a population of gate-assignment schedules over multiple generations. Profiling the code reveals **5 concrete bottlenecks** that collectively waste a large fraction of CPU time.
+Profiled the code and found 5 spots burning most of the CPU. The GA runs 500+ generations on a large dataset — small inefficiencies per generation stack up fast.
 
 ---
 
-## Bottleneck Analysis
-
-### BN-1 — Redundant Fitness Evaluations During Sort (GeneticEngine.java L85-87)
+### BN-1 — Sort calls calculateFitness twice per comparison (GeneticEngine.java ~L85)
 
 ```java
-// CURRENT – O(P log P) sorts but calls calculateFitness twice per comparison
 population.sort((c1, c2) -> Double.compare(
     evaluator.calculateFitness(c2, flights),
     evaluator.calculateFitness(c1, flights)));
 ```
 
-A sort on P=200 chromosomes calls [calculateFitness](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/FitnessEvaluator.java#109-247) O(P log P) ≈ **1,530 times per generation** just for ordering. [calculateFitness](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/FitnessEvaluator.java#109-247) itself is an O(N) walk over all flights plus BFS calls. **Fix:** pre-compute fitness for all chromosomes into a `double[]` array once per generation, then sort by index.
+With P=200 chromosomes, the sort makes ~1,530 comparisons per generation. Each one calls `calculateFitness` twice — that's 3,060 full O(N) passes over all flights just to sort. Fix: pre-compute a `double[] fitnessCache` once at the top of `evolve()`, then sort by index using the cached values.
 
 ---
 
-### BN-2 — Redundant [getBestSolution](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#243-256) scan (GeneticEngine.java L286-287)
+### BN-2 — getBestSolution rescans the whole population after it's already sorted (GeneticEngine.java ~L286)
 
-After [evolve()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#79-102) the loop calls [getBestSolution()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#243-256) which iterates the whole population *again* calling [calculateFitness](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/FitnessEvaluator.java#109-247) P times. Since the sort in [evolve()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#79-102) already leaves the best chromosome at index 0, [getBestSolution](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#243-256) just needs to return `population.get(0)` — no fitness calls needed.
-
----
-
-### BN-3 — `new Random()` Per Function Call (GeneticEngine.java L104, L122, L169)
-
-[select()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#103-118), [crossover()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#119-139), and [mutate()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#162-192) each construct `new Random()` on every call. Creating a `Random` is not entirely free, and more importantly, each new instance is seeded from `System.nanoTime()` — with rapid sequential calls they can share seeds, degrading randomness and wasting allocations. **Fix:** make `rand` a single private field on [GeneticEngine](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#16-381).
+After `evolve()` finishes, the population is already sorted descending. Then `getBestSolution()` loops through it again calling `calculateFitness` P more times to find what's already at index 0. Should just return `population.get(0)`.
 
 ---
 
-### BN-4 — [getValidGates](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#140-161) Iterates All Gates on Every Mutation (GeneticEngine.java L140-160)
+### BN-3 — new Random() on every single call (GeneticEngine.java ~L104, L122, L169)
 
-[getValidGates(f, evaluator)](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#140-161) does two full linear scans of `gates` for every mutation call. With P mutations per generation and G gates this is O(P×G) per generation just for mutation. **Fix:** pre-build a `Map<PlaneType, Map<Boolean, List<Gate>>>` lookup table when the engine starts, so [getValidGates](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#140-161) becomes an O(1) map lookup.
+`select()`, `crossover()`, and `mutate()` each construct a `new Random()` every time they're called. Besides the allocation overhead, back-to-back calls share seeds from `System.nanoTime()`, which quietly degrades the randomness. One shared `private final Random rand` field on the class is the fix.
 
 ---
 
-### BN-5 — [getConflictIndices](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#193-242) Rebuilds `gateMap` On Every Conflict-Check (GeneticEngine.java L199-201)
+### BN-4 — getValidGates walks all gates twice on every mutation (GeneticEngine.java ~L140)
+
+Every call to `getValidGates(f, evaluator)` does two linear scans through the gate list. With P mutations per generation, that's O(P×G) work per generation just for mutation alone. Pre-building a `Map<PlaneType, Map<Boolean, List<Gate>>>` cache in the constructor cuts this to an O(1) lookup.
+
+---
+
+### BN-5 — getConflictIndices rebuilds the same gateMap on every conflict check (GeneticEngine.java ~L199)
 
 ```java
 Map<Integer, Gate> gateMap = new HashMap<>();
 for (Gate g : gates) gateMap.put(g.getId(), g);
 ```
-This rebuilds the same identical map inside every call to [getConflictIndices()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#193-242). **Fix:** promote `gateMap` to a private field initialized once in the constructor (it already exists in [FitnessEvaluator](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/FitnessEvaluator.java#25-248); [GeneticEngine](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#16-381) should maintain its own).
+
+This is rebuilt from scratch inside every `getConflictIndices()` call. It's the same map every time. Moving it to a private field initialized in the constructor fixes it — same pattern already used in `FitnessEvaluator`.
 
 ---
 
-## Proposed Changes
+## What to change
 
-### GeneticEngine.java
+All changes are in `GeneticEngine.java`:
 
-#### [MODIFY] [GeneticEngine.java](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java)
-- Add a single `private final Random rand` field (fixes BN-3).
-- Add a `private Map<Integer, Gate> gateMap` field built in the constructor (fixes BN-5).
-- Add a `private Map<PlaneType, Map<Boolean, List<Gate>>> validGatesCache` built in the constructor for instant valid-gate lookups (fixes BN-4).
-- Refactor [evolve()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#79-102): pre-compute `double[] fitnessCache` once per generation, sort by pre-computed values, pass the cache to [getBestSolution](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#243-256) (fixes BN-1).
-- Refactor [getBestSolution()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#243-256): since population is already sorted after [evolve()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#79-102), just return `population.get(0)` — or accept the cache array (fixes BN-2).
-- Update [select()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#103-118), [crossover()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#119-139), [mutate()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#162-192), [getConflictIndices()](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java#193-242) to use the shared field-level objects.
+- Add `private final Random rand` field (BN-3)
+- Add `private Map<Integer, Gate> gateMap` field, built in constructor (BN-5)
+- Add `private Map<PlaneType, Map<Boolean, List<Gate>>> validGatesCache`, built in constructor (BN-4)
+- Refactor `evolve()` to pre-compute `double[] fitnessCache`, sort by it (BN-1)
+- Simplify `getBestSolution()` to `return population.get(0)` (BN-2)
+- Update `select()`, `crossover()`, `mutate()`, `getConflictIndices()` to use the shared fields instead of allocating new objects
 
 ---
 
-## Verification Plan
+## How to verify
 
-### Automated Tests
+Run `MassiveScaleTest` (500 flights, 200 pop, 500 gens) and check two things:
+- Final fitness is the same or better — the algorithm itself hasn't changed, just the caching
+- No NPE or out-of-bounds from the new maps
 
-The project has two test harnesses:
-
-1. **GeneticEngine self-test** ([main](file:///c:/YudGimel/AIRPORT-version1.0/src/model/spatial/TerminalGraph.java#127-191) inside [GeneticEngine.java](file:///c:/YudGimel/AIRPORT-version1.0/src/model/algo/genetic/GeneticEngine.java)):
-   ```
-   cd c:\YudGimel\AIRPORT-version1.0
-   javac -d out src\model\**\*.java src\model\algo\**\*.java src\model\spatial\*.java src\model\ds\*.java src\model\enums\*.java src\model\state\*.java src\model\utils\*.java
-   java -cp out model.algo.genetic.GeneticEngine
-   ```
-   Expected: prints generation-by-generation fitness without errors; final solution printed.
-
-2. **MassiveScaleTest** (500 flights, 200 pop, 500 gens):
-   ```
-   cd c:\YudGimel\AIRPORT-version1.0
-   java -cp out test.MassiveScaleTest
-   ```
-   Expected: same or better fitness than before the changes, with noticeably faster wall-clock time.
-
-### Key Correctness Checks
-- Final fitness score does **not** decrease after the refactor (same algorithm, just cached).
-- No `NullPointerException` or `ArrayIndexOutOfBoundsException` from the new cache maps.
-- Early-stopping still triggers correctly (stagnant-generation counter still works).
+For a quick smoke test without the full dataset, `GeneticEngine.main` works fine. Wall-clock time should be noticeably faster, especially at higher generation counts.

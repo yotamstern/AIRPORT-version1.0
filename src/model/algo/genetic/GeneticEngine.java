@@ -12,8 +12,9 @@ import java.util.*;
 import java.util.function.BiConsumer;
 
 /**
- * The core engine of the Genetic Algorithm.
- * Evolves a population of schedules to find an optimal gate assignment.
+ * Runs the genetic algorithm to find an optimal gate assignment schedule.
+ * Population evolves over generations using tournament selection,
+ * two-point crossover, and conflict-directed mutation.
  */
 public class GeneticEngine {
     private FlightRepository flightRepo;
@@ -90,7 +91,7 @@ public class GeneticEngine {
     }
 
     /**
-     * Parameter Tuning method for scale testing (Task 3).
+     * Overrides the default GA parameters — mainly used for scale testing.
      */
     public void setParameters(int populationSize, double mutationRate, int maxGenerations) {
         this.populationSize = populationSize;
@@ -99,13 +100,13 @@ public class GeneticEngine {
     }
 
     /**
-     * Warm-Start Micro-GA: repairs a schedule after a delay is injected.
-     * Locked genes (past/committed flights) are never mutated or crossed-over.
-     * The population is seeded from the current best chromosome, so the GA
-     * starts near-optimal and only needs a small number of generations.
+     * Repairs a schedule after a new delay or conflict is injected mid-simulation.
+     * Flights that have already departed or are committed stay locked — only
+     * unresolved ones get re-assigned. The population seeds from the current best
+     * chromosome so the GA converges quickly.
      *
-     * @param baseChromosome   The current schedule (may contain a new collision).
-     * @param lockedIndices    Flight indices whose gate assignments must not change.
+     * @param baseChromosome The current schedule, possibly containing a new conflict.
+     * @param lockedIndices  Flight indices whose assignments must not change.
      * @return The repaired chromosome.
      */
     public int[] runRepair(int[] baseChromosome, Set<Integer> lockedIndices) {
@@ -139,10 +140,9 @@ public class GeneticEngine {
     }
 
     /**
-     * Seeds a warm population from a base chromosome.
-     * Every chromosome starts as a clone of the base, then unlocked genes are
-     * randomly perturbed (30% chance each) so the population has diversity
-     * without losing the near-optimal starting point.
+     * Seeds the population from a known-good chromosome rather than random.
+     * Each copy has a 30% per-gene perturbation on unlocked slots to introduce
+     * diversity while keeping the solution close to optimal.
      */
     private void initializeWarmPopulation(int[] base) {
         population = new ArrayList<>();
@@ -186,9 +186,10 @@ public class GeneticEngine {
     }
 
     /**
-     * BN-1 fix: pre-compute fitness once per generation into a parallel double[]
-     * array, then sort by cached values — eliminating O(P log P) redundant calls.
-     * BN-2 fix: after sorting, population.get(0) is always the best individual.
+     * Advances the population by one generation.
+     * Fitness is computed once per chromosome per generation (cached in a double[])
+     * rather than being recomputed on each sort comparison.
+     * After sorting, index 0 is always the current best.
      */
     private void evolve(FitnessEvaluator evaluator) {
         int size = population.size();
@@ -268,7 +269,8 @@ public class GeneticEngine {
     }
 
     /**
-     * BN-4 fix: valid-gate lookup is now O(1) via pre-built cache.
+     * Returns gates that are valid for this flight's plane type and terminal.
+     * Uses the pre-built cache — O(1) instead of scanning all gates each time.
      */
     private List<Gate> getValidGates(Flight f) {
         Map<Boolean, List<Gate>> byIntl = validGatesCache.get(f.getType());
@@ -282,13 +284,10 @@ public class GeneticEngine {
     }
 
     /**
-     * Conflict-Directed Mutation (Task 2):
-     * Instead of purely random mutation, there is a 50% chance to target a flight
-     * that is currently involved in a time or size conflict. If no conflicts exist,
-     * or the 50% roll fails, it falls back to completely random mutation.
-     *
-     * BN-3 fix: no longer creates a new Random() — uses shared rand field.
-     * BN-4 fix: getValidGates() is now O(1).
+     * Mutates a chromosome with conflict-directed targeting.
+     * There's a 50/50 chance to mutate a flight that's already in conflict
+     * rather than picking one at random — this tends to fix problems faster.
+     * Falls back to random mutation when no conflicts are found.
      */
     private void mutate(int[] child) {
         if (rand.nextDouble() < mutationRate) {
@@ -317,9 +316,8 @@ public class GeneticEngine {
     }
 
     /**
-     * Finds flights that are in conflict (either overlapping time or incorrect gate size).
-     *
-     * BN-5 fix: uses the pre-built gateMap field instead of rebuilding it here.
+     * Returns the indices of flights involved in a conflict — either a time
+     * overlap with another flight at the same gate, a size mismatch, or wrong terminal.
      */
     private List<Integer> getConflictIndices(int[] chromosome) {
         List<Integer> conflicts = new ArrayList<>();
@@ -363,8 +361,8 @@ public class GeneticEngine {
     }
 
     /**
-     * BN-2 fix: population is already sorted descending by fitness after evolve(),
-     * so the best is always at index 0 — no need to scan the entire population.
+     * Returns the best chromosome. Population is sorted after each evolve() call,
+     * so index 0 is always the current best.
      */
     private int[] getBestSolution() {
         return population.get(0);
@@ -463,16 +461,12 @@ public class GeneticEngine {
     }
 
     /**
-     * Post-processing sweep: removes hard-constraint violations from the best
-     * chromosome, places the evicted flights into a FlightMinHeap ordered by
-     * urgency, then greedily re-assigns them into free time slots.
+     * Post-processing pass after GA convergence. Evicts any flights that still
+     * violate hard constraints, then greedily re-assigns them by urgency into
+     * free gate slots. Priority order: exact-size fit, then oversized, then
+     * leave unassigned (which routes to HoldingState in simulation).
      *
-     * Assignment priorities:
-     *   1. Exact-size gate that is free during the flight's window
-     *   2. Oversized gate that is free during the flight's window
-     *   3. Force-assign to any valid gate (hard violation kept, prevents unscheduled)
-     *
-     * Time Complexity: O(N log N + N*G)
+     * Time complexity: O(N log N + N*G)
      */
     private int[] greedySweep(int[] chromosome, FitnessEvaluator evaluator) {
         int[] result = chromosome.clone();
@@ -635,9 +629,8 @@ public class GeneticEngine {
     }
 
     /**
-     * Checks whether a flight can occupy a gate slot without causing a time
-     * overlap with any already-scheduled flight. Includes the 15-minute
-     * turnaround buffer that GreedyInitializer also enforces.
+     * Returns true if the gate has no scheduled flight overlapping this one.
+     * Requires a 15-minute turnaround gap on each side, matching the greedy initializer.
      */
     private boolean isFreeSlot(List<int[]> occupancy, Flight f) {
         for (int[] interval : occupancy) {

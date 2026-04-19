@@ -4,27 +4,19 @@ import model.Flight;
 import java.util.List;
 
 /**
- * Helper class to verify constraints in the schedule.
- * Specifically checks for gate collisions where two flights occupy the same
- * gate at the same time.
+ * Utility for sanity-checking schedules outside of the fitness function.
+ * Mainly used in tests to verify a final solution has no gate collisions.
  */
 public class ConstraintChecker {
 
     /**
-     * Counts the number of collisions in a given schedule.
-     * A collision is defined as two flights assigned to the same gate with
-     * overlapping time windows.
-     * <p>
-     * <b>Time Complexity:</b> O(N^2), where N is the number of flights.
-     * We iterate through every pair of flights to check for overlaps.
-     * While O(N log N) is possible with sorting, O(N^2) is acceptable for small N
-     * in this project phase.
-     * </p>
-     * 
-     * @param chromosome The schedule representation (index = flight index, value =
-     *                   gate ID).
-     * @param flights    The list of flights (indexed by position in chromosome).
-     * @return The number of hard constraint violations.
+     * Returns the number of gate-time collisions in a schedule.
+     * O(N^2) — sorting to O(N log N) isn't worth it here since this is only
+     * called for verification, not during GA evolution.
+     *
+     * @param chromosome Index-to-gateId mapping (same encoding as the GA chromosome).
+     * @param flights    Flight list, indexed to match the chromosome.
+     * @return Number of hard constraint violations found.
      */
     public static int countCollisions(int[] chromosome, List<Flight> flights) {
         int collisions = 0;

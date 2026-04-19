@@ -5,9 +5,9 @@ import model.state.FlightState;
 import model.state.PlannedState;
 
 /**
- * Represents a flight in the system.
- * Manages its own state via the State Pattern.
- * Implements Comparable to prioritize flights based on urgency score.
+ * A flight moving through the airport. Owns its lifecycle state (Planned →
+ * Approaching → Landed → AtGate → Departed) via the State pattern.
+ * Implements Comparable so the urgency min-heap can order flights correctly.
  */
 public class Flight implements Comparable<Flight> {
     private int id;
@@ -23,15 +23,11 @@ public class Flight implements Comparable<Flight> {
     private int passengerCount; // Number of passengers on this flight
 
     /**
-     * Constructs a new Flight.
-     * Initializes state to {@link PlannedState}.
-     * 
-     * @param id           Unique identifier.
-     * @param flightCode   Flight code (e.g., "UA123").
-     * @param arrivalTime  Expected arrival time in minutes from midnight.
-     * @param type         The distinct type of the plane.
-     * @param urgencyScore Logic score for prioritization (Higher = Higher
-     *                     priority).
+     * @param id           Unique flight ID.
+     * @param flightCode   Human-readable code, e.g. "UA123".
+     * @param arrivalTime  Expected arrival in minutes from midnight.
+     * @param type         Plane size category.
+     * @param urgencyScore Higher value = higher priority in the scheduling heap.
      */
     public Flight(int id, String flightCode, int arrivalTime, PlaneType type, double urgencyScore) {
         this(id, flightCode, arrivalTime, type, urgencyScore, false, "UA"); // Default UA
@@ -76,9 +72,7 @@ public class Flight implements Comparable<Flight> {
     }
 
     /**
-     * Updates the flight's logic by delegating to the current state.
-     * 
-     * @param currentTime Current simulation time.
+     * Advances this flight's state for the current simulation tick.
      */
     public void update(int currentTime) {
         state.update(this, currentTime);
@@ -149,36 +143,14 @@ public class Flight implements Comparable<Flight> {
         this.assignedGate = assignedGate;
     }
 
-    /**
-     * Calculates the scheduled departure time based on arrival and service
-     * duration.
-     * 
-     * @return Departure time in minutes from midnight.
-     */
+    /** Departure time = arrival + service duration (both in minutes from midnight). */
     public int getDepartureTime() {
         return arrivalTime + serviceDuration;
     }
 
     /**
-     * Compares flights based on urgency score for Min-Heap usage.
-     * Note: Creating a Max-Heap effect if expected, but standard PriorityQueue is
-     * Min-Heap.
-     * Requirement: "Higher score = Higher priority".
-     * Standard compareTo: (this < other) -> negative.
-     * To make higher score come first in a priority queue (which usually polls
-     * smallest), we might need to reverse logic OR user will use a max-heap.
-     * "Logic: Compare urgencyScore (Higher score = Higher priority) to prepare for
-     * the Min-Heap."
-     * This phrasing is slightly ambiguous. Usually Min-Heap stores smallest element
-     * at top.
-     * If they want Higher Priority at top of a Min-Heap, they imply 'priority
-     * value' is smaller for higher priority?
-     * OR they assume we reverse the comparison so larger score = "smaller" in
-     * comparison terms.
-     * Re-reading: "Higher score = Higher priority".
-     * If I want to bubble up the Higher Score in a standard tool, I should make it
-     * "smaller".
-     * So: other.score - this.score.
+     * Reversed comparison so that higher urgency scores sort first in a standard
+     * min-heap (i.e., higher score = "smaller" in comparison terms).
      */
     @Override
     public int compareTo(Flight other) {

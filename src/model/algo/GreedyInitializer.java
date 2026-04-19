@@ -10,9 +10,9 @@ import model.enums.PlaneType;
 import java.util.*;
 
 /**
- * Greedily assigns flights to gates based on urgency.
- * Serves as an initializer for more complex optimization algorithms (e.g.,
- * Genetic Algorithm).
+ * Produces a greedy initial gate assignment by processing flights in urgency order.
+ * Used to seed part of the GA's starting population with a reasonable solution
+ * rather than relying entirely on random chromosomes.
  */
 public class GreedyInitializer {
     private FlightRepository flightRepo;
@@ -24,18 +24,12 @@ public class GreedyInitializer {
     }
 
     /**
-     * Generates an initial solution by assigning the most urgent flights to the
-     * first available fitting gate.
-     * <p>
-     * <b>Time Complexity:</b> O(N * (log N + G)), where N is the number of flights
-     * and G is the number of gates.
-     * Building the heap takes O(N log N) (series of inserts).
-     * Extracting min takes O(log N).
-     * Finding a gate takes O(G).
-     * Total loop: N * (log N + G) -> simplifiable to O(N log N + N*G).
-     * </p>
-     * 
-     * @return A Map mapping Flight ID to Gate ID.
+     * Assigns flights to gates in urgency order. Preference: exact size match first,
+     * then oversized, then force-assign and let the GA clean up any overlaps.
+     *
+     * Time complexity: O(N log N + N*G) — heap extraction is O(log N), gate scan is O(G).
+     *
+     * @return Map of Flight ID → Gate ID.
      */
     public Map<Integer, Integer> generateInitialSolution() {
         Map<Integer, Integer> schedule = new HashMap<>();

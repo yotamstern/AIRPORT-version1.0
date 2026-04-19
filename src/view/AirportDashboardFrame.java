@@ -613,7 +613,7 @@ public class AirportDashboardFrame extends JFrame {
             int cur = approaching ? 30 : Math.min((Integer) spinner.getValue(), 120);
             spinner.setModel(new SpinnerNumberModel(cur, 15, max, 15));
         });
-        // Fire immediately to initialise the spinner for the pre-selected item
+        // Fire immediately to initialize the spinner for the pre-selected item
         combo.getActionListeners()[0].actionPerformed(null);
 
         JPanel panel = new JPanel(new GridLayout(2, 2, 5, 5));

@@ -19,8 +19,10 @@ import java.util.Queue;
 import java.util.Set;
 
 /**
- * Component responsible for calculating the fitness score of a schedule.
- * Fitness guides the evolution process.
+ * Scores a gate assignment schedule so the GA can compare chromosomes.
+ * Hard violations (overlaps, wrong gate size, wrong terminal) carry large
+ * penalties; soft ones (walk distance, wasted space, tight transfers) are
+ * weighted small so the GA can still rank nearly-valid solutions.
  */
 public class FitnessEvaluator {
     private TerminalGraph graph;
@@ -49,7 +51,8 @@ public class FitnessEvaluator {
     }
 
     /**
-     * Helper method to calculate how much a plane is wasting gate size capacity.
+     * Returns 0 if the gate is a good fit, 1 if slightly oversized, 2 if very oversized.
+     * Used both for the fitness penalty and for the gate preference logic in the GA.
      */
     public int getWastedSpaceLevel(GateSize gateSize, PlaneType planeType) {
         if (planeType == PlaneType.SMALL_BODY) {
@@ -62,8 +65,9 @@ public class FitnessEvaluator {
     }
 
     /**
-     * Breadth-First Search (BFS) to count disconnected clusters of planes.
-     * Used for grouping flights from the same airline together physically.
+     * Counts how many separate clusters exist among gates used by the same airline.
+     * Fewer clusters = better grouping = lower soft penalty.
+     * BFS over the terminal graph — gates that are physically adjacent form one cluster.
      */
     private int countConnectedComponents(List<Integer> activeGates, TerminalGraph graph) {
         Set<Integer> targetGates = new HashSet<>(activeGates);
