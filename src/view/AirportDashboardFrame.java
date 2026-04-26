@@ -65,7 +65,7 @@ public class AirportDashboardFrame extends JFrame {
 
     public AirportDashboardFrame() {
         // Frame Configuration
-        setTitle("Airport Scheduling System - View Layer");
+        setTitle("Flight Board :)");
         setSize(1400, 900);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
