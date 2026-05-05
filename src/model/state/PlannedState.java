@@ -3,14 +3,13 @@ package model.state;
 import model.Flight;
 
 /**
- * Represents the initial state of a flight (Planned).
- * The flight is scheduled but has not yet approached the airport.
- * <p>
- * State Pattern: Encapsulates logic for the "Planned" phase.
- * Transitions to {@link ApproachingState} when within 30 minutes of arrival.
- * </p>
+ * The first state in a flight's lifecycle — the flight is on the books but still
+ * far from the airport. Once the simulated clock reaches 30 minutes before the
+ * scheduled arrival, the flight transitions to {@link ApproachingState}.
  */
 public class PlannedState implements FlightState {
+
+    private static final int APPROACHING_THRESHOLD_MINUTES = 30;
 
     @Override
     public void enter(Flight f) {
@@ -19,8 +18,7 @@ public class PlannedState implements FlightState {
 
     @Override
     public void update(Flight f, int currentTime) {
-        // Transition to ApproachingState when currentTime >= arrivalTime - 30
-        if (currentTime >= f.getArrivalTime() - 30) {
+        if (currentTime >= f.getArrivalTime() - APPROACHING_THRESHOLD_MINUTES) {
             f.setState(new ApproachingState());
         }
     }

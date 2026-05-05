@@ -27,13 +27,52 @@ import model.spatial.TerminalGraph;
 public class AirportDashboardFrame extends JFrame {
 
     // --- Unified Color Palette ---
-    private static final Color BG_MAIN = new Color(30, 33, 43); // #1e212b
-    private static final Color BG_PANEL = new Color(42, 46, 57); // #2a2e39
-    private static final Color TEXT_PRIMARY = new Color(255, 255, 255); // #ffffff
-    private static final Color TEXT_SECONDARY = new Color(160, 165, 177);// #a0a5b1
-    private static final Color BTN_BLUE = new Color(59, 130, 246); // #3b82f6
-    private static final Color BTN_RED_ = new Color(239, 68, 68); // #ef4444
-    private static final Color BTN_BASIC = new Color(55, 65, 81); // #374151
+    private static final Color BG_MAIN = new Color(30, 33, 43);
+    private static final Color BG_PANEL = new Color(42, 46, 57);
+    private static final Color TEXT_PRIMARY = new Color(255, 255, 255);
+    private static final Color TEXT_SECONDARY = new Color(160, 165, 177);
+    private static final Color BTN_BLUE = new Color(59, 130, 246);
+    private static final Color BTN_RED_ = new Color(239, 68, 68);
+    private static final Color BTN_BASIC = new Color(55, 65, 81);
+    private static final Color BTN_GREEN = new Color(16, 185, 129);
+
+    // --- Gate Layout ---
+    private static final int SMALL_DOM_GATE_COUNT = 10;
+    private static final int SMALL_INT_GATE_COUNT = 5;
+    private static final int LARGE_DOM_GATE_COUNT = 5;
+    private static final int LARGE_INT_GATE_COUNT = 4;
+    private static final int JUMBO_INT_GATE_COUNT = 6;
+    private static final int SMALL_DOM_GATE_STRIDE = 10;
+    private static final int SMALL_INT_GATE_BASE_X = 100;
+    private static final int SMALL_INT_GATE_STRIDE = 10;
+    private static final int LARGE_DOM_GATE_BASE_X = 150;
+    private static final int LARGE_DOM_GATE_STRIDE = 15;
+    private static final int LARGE_INT_GATE_BASE_X = 225;
+    private static final int LARGE_INT_GATE_STRIDE = 15;
+    private static final int JUMBO_INT_GATE_BASE_X = 300;
+    private static final int JUMBO_INT_GATE_STRIDE = 20;
+
+    // --- GA Parameters ---
+    private static final int GA_POPULATION_SIZE = 100;
+    private static final double GA_MUTATION_RATE = 0.05;
+    private static final int GA_MAX_GENERATIONS = 500;
+    private static final double REPAIR_FITNESS_BONUS = 10000.0;
+    private static final int SIM_START_OFFSET_MINUTES = 60;
+
+    // --- Simulation timing ---
+    private static final int DAY_START_MINUTE = 360; // 06:00 in minutes-since-midnight
+
+    // --- Delay Dialog ---
+    private static final int DELAY_DEFAULT_MINUTES = 30;
+    private static final int DELAY_MIN_MINUTES = 15;
+    private static final int DELAY_MAX_MINUTES = 120;
+    private static final int DELAY_STEP_MINUTES = 15;
+    private static final int APPROACHING_DELAY_MAX_MINUTES = 30;
+
+    // --- Plane Type Priority (for holding queue ordering) ---
+    private static final int PRIORITY_JUMBO = 3;
+    private static final int PRIORITY_LARGE = 2;
+    private static final int PRIORITY_SMALL = 1;
 
     // UI References
     private JLabel lblTotalFlights = new JLabel("");
@@ -131,7 +170,7 @@ public class AirportDashboardFrame extends JFrame {
         JPanel colorsPanel = new JPanel(new GridLayout(3, 1, 0, 5));
         colorsPanel.setBackground(BG_PANEL);
         colorsPanel.add(createLegendRow("Jumbo Body", new Color(59, 130, 246))); // Blue
-        colorsPanel.add(createLegendRow("Large Body", new Color(16, 185, 129))); // Green
+        colorsPanel.add(createLegendRow("Large Body", BTN_GREEN)); // Green
         colorsPanel.add(createLegendRow("Small Body", new Color(234, 179, 8))); // Yellow
         colorsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -305,8 +344,8 @@ public class AirportDashboardFrame extends JFrame {
 
     private void processAndDisplayFlights(List<Flight> currentFlights, double fitnessScore, int currentGeneration) {
         PriorityQueue<Flight> holdingFlights = new PriorityQueue<>((f1, f2) -> {
-            int p1 = f1.getType() == PlaneType.JUMBO_BODY ? 3 : (f1.getType() == PlaneType.LARGE_BODY ? 2 : 1);
-            int p2 = f2.getType() == PlaneType.JUMBO_BODY ? 3 : (f2.getType() == PlaneType.LARGE_BODY ? 2 : 1);
+            int p1 = f1.getType() == PlaneType.JUMBO_BODY ? PRIORITY_JUMBO : (f1.getType() == PlaneType.LARGE_BODY ? PRIORITY_LARGE : PRIORITY_SMALL);
+            int p2 = f2.getType() == PlaneType.JUMBO_BODY ? PRIORITY_JUMBO : (f2.getType() == PlaneType.LARGE_BODY ? PRIORITY_LARGE : PRIORITY_SMALL);
             if (p1 != p2)
                 return Integer.compare(p2, p1);
             return Integer.compare(f1.getArrivalTime(), f2.getArrivalTime());
@@ -343,12 +382,14 @@ public class AirportDashboardFrame extends JFrame {
             }
         }
 
-        // Phase 20: Greedy Repair Algorithm (Run only on Final Step)
+            // On the final generation pass (currentGeneration == -1), run a greedy repair
+        // to catch any flights the GA sweep couldn't cleanly assign. This is display-only —
+        // the underlying chromosome is not changed, just the visual layout in the Gantt chart.
         if (currentGeneration == -1 && systemGates != null) {
             int prevCount = holdingFlights.size();
             holdingFlights = runGreedyRepair(holdingFlights, gateMap);
             int repairedCount = prevCount - holdingFlights.size();
-            fitnessScore += repairedCount * 10000;
+            fitnessScore += repairedCount * REPAIR_FITNESS_BONUS;
         }
 
         int currentAssigned = currentFlights.size() - holdingFlights.size();
@@ -369,8 +410,20 @@ public class AirportDashboardFrame extends JFrame {
         }
     }
 
+    /**
+     * The main entry point when the user clicks "Start Simulation".
+     *
+     * <p>Runs in two distinct phases:
+     * <ol>
+     *   <li><b>GA Phase (background thread)</b> — builds the gate layout, generates a fresh
+     *       flight CSV, loads flights, and runs the Genetic Algorithm. The Gantt chart updates
+     *       live after each generation via the progress callback.</li>
+     *   <li><b>FSM Simulation Phase (EDT timer)</b> — once the GA finishes, a
+     *       {@link SimulationClock} fires every 100 ms (= 1 simulated minute) and advances
+     *       every flight through its state machine lifecycle.</li>
+     * </ol>
+     */
     private void runSimulation() {
-        // Reset the Pause button state cleanly on new runs
         btnPause.setText("Pause");
         btnPause.setBackground(BTN_BASIC);
 
@@ -390,36 +443,41 @@ public class AirportDashboardFrame extends JFrame {
                 systemGraph = graph;
                 systemRepo = repo;
 
+                // Build the gate layout. Gates are laid out linearly in the terminal graph
+                // (each gate connects to the next one). Position X values determine walking
+                // distances used by the fitness evaluator — farther gates cost more penalty.
+                // The gate ID counter starts at 1 because gate 1 is the terminal entrance
+                // (the reference point for all walking-distance calculations).
                 int gateIdCounter = 1;
-                // Gates 1-10: SMALL, Domestic
-                for (int i = 0; i < 10; i++) {
-                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_SMALL, i * 10, 0, false);
+                // SMALL, Domestic
+                for (int i = 0; i < SMALL_DOM_GATE_COUNT; i++) {
+                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_SMALL, i * SMALL_DOM_GATE_STRIDE, 0, false);
                     gates.add(g);
                     graph.addGate(g);
                 }
-                // Gates 11-15: SMALL, International
-                for (int i = 0; i < 5; i++) {
-                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_SMALL, 100 + i * 10, 0, true);
-                    gates.add(g);
-                    graph.addGate(g);
-                }
-
-                // Gates 16-20: LARGE, Domestic
-                for (int i = 0; i < 5; i++) {
-                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 150 + i * 15, 0, false);
-                    gates.add(g);
-                    graph.addGate(g);
-                }
-                // Gates 21-24: LARGE, International
-                for (int i = 0; i < 4; i++) {
-                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, 225 + i * 15, 0, true);
+                // SMALL, International
+                for (int i = 0; i < SMALL_INT_GATE_COUNT; i++) {
+                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_SMALL, SMALL_INT_GATE_BASE_X + i * SMALL_INT_GATE_STRIDE, 0, true);
                     gates.add(g);
                     graph.addGate(g);
                 }
 
-                // Gates 25-30: JUMBO, International (All Jumbo are international now)
-                for (int i = 0; i < 6; i++) {
-                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, 300 + i * 20, 0, true);
+                // LARGE, Domestic
+                for (int i = 0; i < LARGE_DOM_GATE_COUNT; i++) {
+                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, LARGE_DOM_GATE_BASE_X + i * LARGE_DOM_GATE_STRIDE, 0, false);
+                    gates.add(g);
+                    graph.addGate(g);
+                }
+                // LARGE, International
+                for (int i = 0; i < LARGE_INT_GATE_COUNT; i++) {
+                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_LARGE, LARGE_INT_GATE_BASE_X + i * LARGE_INT_GATE_STRIDE, 0, true);
+                    gates.add(g);
+                    graph.addGate(g);
+                }
+
+                // JUMBO, International
+                for (int i = 0; i < JUMBO_INT_GATE_COUNT; i++) {
+                    Gate g = new Gate(gateIdCounter++, GateSize.SIZE_JUMBO, JUMBO_INT_GATE_BASE_X + i * JUMBO_INT_GATE_STRIDE, 0, true);
                     gates.add(g);
                     graph.addGate(g);
                 }
@@ -437,7 +495,7 @@ public class AirportDashboardFrame extends JFrame {
                 model.utils.CSVLoader.loadFlights("flights.csv", repo);
 
                 currentEngine = new GeneticEngine(repo, gates, graph);
-                currentEngine.setParameters(100, 0.05, 500); // Massive constraints limit for fast UI response
+                currentEngine.setParameters(GA_POPULATION_SIZE, GA_MUTATION_RATE, GA_MAX_GENERATIONS);
                 int[] bestSolution;
                 bestSolution = currentEngine.run((progressFlights, currentFitness, generation) -> {
                     SwingUtilities
@@ -478,7 +536,7 @@ public class AirportDashboardFrame extends JFrame {
                     simulationEngine.validateInitialSchedule(); // guarantee zero collisions before clock starts
 
                     int startTime = finalFlights.stream()
-                            .mapToInt(Flight::getArrivalTime).min().orElse(360) - 60;
+                            .mapToInt(Flight::getArrivalTime).min().orElse(DAY_START_MINUTE) - SIM_START_OFFSET_MINUTES;
 
                     simulationClock = new SimulationClock(Math.max(startTime, 0), t -> {
                         simulationEngine.tick(t);
@@ -528,7 +586,7 @@ public class AirportDashboardFrame extends JFrame {
         }
         if (nowPaused) {
             btnPause.setText("Resume");
-            btnPause.setBackground(new Color(16, 185, 129));
+            btnPause.setBackground(BTN_GREEN);
         } else {
             btnPause.setText("Pause");
             btnPause.setBackground(BTN_BASIC);
@@ -583,7 +641,7 @@ public class AirportDashboardFrame extends JFrame {
         if (simulationEngine == null || simulationClock == null) return;
         simulationClock.pause();
         btnPause.setText("Resume");
-        btnPause.setBackground(new Color(16, 185, 129));
+        btnPause.setBackground(BTN_GREEN);
 
         List<Flight> delayable = simulationEngine.getDelayableFlights();
         if (delayable.isEmpty()) {
@@ -594,7 +652,7 @@ public class AirportDashboardFrame extends JFrame {
             return;
         }
 
-        JSpinner spinner = new JSpinner(new SpinnerNumberModel(30, 15, 120, 15));
+        JSpinner spinner = new JSpinner(new SpinnerNumberModel(DELAY_DEFAULT_MINUTES, DELAY_MIN_MINUTES, DELAY_MAX_MINUTES, DELAY_STEP_MINUTES));
 
         JComboBox<Flight> combo = new JComboBox<>(delayable.toArray(new Flight[0]));
         combo.setRenderer((list, value, idx, sel, focus) -> {
@@ -609,8 +667,8 @@ public class AirportDashboardFrame extends JFrame {
             Flight sel = (Flight) combo.getSelectedItem();
             if (sel == null) return;
             boolean approaching = sel.getState() instanceof model.state.ApproachingState;
-            int max = approaching ? 30 : 120;
-            int cur = approaching ? 30 : Math.min((Integer) spinner.getValue(), 120);
+            int max = approaching ? APPROACHING_DELAY_MAX_MINUTES : DELAY_MAX_MINUTES;
+            int cur = approaching ? APPROACHING_DELAY_MAX_MINUTES : Math.min((Integer) spinner.getValue(), DELAY_MAX_MINUTES);
             spinner.setModel(new SpinnerNumberModel(cur, 15, max, 15));
         });
         // Fire immediately to initialize the spinner for the pre-selected item

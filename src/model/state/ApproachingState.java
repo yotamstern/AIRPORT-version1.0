@@ -3,12 +3,9 @@ package model.state;
 import model.Flight;
 
 /**
- * Represents the state where the flight is approaching the airport.
- * Active from 30 minutes before arrival until arrival time.
- * <p>
- * State Pattern: Encapsulates logic for the "Approaching" phase.
- * Transitions to {@link LandedState} when arrival time is reached.
- * </p>
+ * The flight is in the air and closing in on the airport — within 30 minutes of landing.
+ * The gate assignment is already set at this point; this state just waits for the
+ * clock to reach the arrival time before handing off to {@link LandedState}.
  */
 public class ApproachingState implements FlightState {
 

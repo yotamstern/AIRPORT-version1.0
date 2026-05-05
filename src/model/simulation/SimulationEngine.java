@@ -13,13 +13,26 @@ import javax.swing.SwingWorker;
 import java.util.*;
 
 /**
- * Orchestrates the real-time simulation after the GA has produced a schedule.
- * Responsibilities:
- *  - Advancing FSM states each clock tick
- *  - Applying flight delays injected by the user
- *  - Launching a Warm-Start Micro-GA to repair the schedule after a delay
+ * Drives the live airport simulation once the Genetic Algorithm has produced an
+ * initial schedule.
+ *
+ * <p>The engine is called once per simulated minute (a "tick") by the
+ * {@link SimulationClock}. Each tick advances every flight through its FSM lifecycle:
+ * Planned → Approaching → Landed → AtGate → Departed (or HoldingState if no gate
+ * is available when the plane lands).
+ *
+ * <p>When the user injects a delay mid-simulation, the engine launches a lightweight
+ * "Micro-GA" on a background thread to repair the schedule. The Micro-GA is much
+ * smaller than the original GA (fewer generations, smaller population) because it
+ * starts from the current near-optimal schedule rather than from scratch, so it
+ * converges quickly without blocking the UI.
  */
 public class SimulationEngine {
+
+    private static final int TURNAROUND_BUFFER_MINUTES = 15;
+    private static final int MICRO_GA_POPULATION = 60;
+    private static final double MICRO_GA_MUTATION_RATE = 0.15;
+    private static final int MICRO_GA_GENERATIONS = 50;
 
     private final List<Flight> flights;
     private final List<Gate> gates;
@@ -47,6 +60,11 @@ public class SimulationEngine {
     // Clock tick — called every simulated minute on the EDT
     // -------------------------------------------------------------------------
 
+    /**
+     * Advances all active flights by one simulated minute.
+     * Departed flights are skipped because they're in a terminal state with no transitions.
+     * After updating states, we check whether any holding flights can now be given a gate.
+     */
     public void tick(int currentTime) {
         for (Flight f : flights) {
             if (!(f.getState() instanceof DepartedState)) {
@@ -57,8 +75,10 @@ public class SimulationEngine {
     }
 
     /**
-     * Each tick: check if any HoldingState flight can now fit a freed gate slot.
-     * Runs O(H * G) — fast enough to call every simulated minute.
+     * Scans holding flights every tick and assigns any that now have a free compatible gate.
+     * This handles two scenarios: a gate that was freed by a departing plane, and flights
+     * that were left unassigned by the GA's greedy sweep (unresolvable conflicts).
+     * Holding flights are sorted by urgency so the most critical ones get priority.
      */
     private void tryAssignHoldingFlights() {
         List<Flight> holding = getHoldingFlights();
@@ -106,8 +126,8 @@ public class SimulationEngine {
 
     private boolean isFreeSlot(List<int[]> occupancy, Flight f) {
         for (int[] interval : occupancy) {
-            if (!(f.getArrivalTime() >= interval[1] + 15
-                    || interval[0] >= f.getDepartureTime() + 15)) {
+            if (!(f.getArrivalTime() >= interval[1] + TURNAROUND_BUFFER_MINUTES
+                    || interval[0] >= f.getDepartureTime() + TURNAROUND_BUFFER_MINUTES)) {
                 return false;
             }
         }
@@ -119,9 +139,13 @@ public class SimulationEngine {
     // -------------------------------------------------------------------------
 
     /**
-     * Adds delayMinutes to the target flight's arrival time, resets it to
-     * PlannedState, and launches a Micro-GA on a background thread to repair
-     * any resulting conflicts.
+     * Applies a delay to the target flight and asynchronously repairs the schedule.
+     *
+     * <p>Shifting a flight's arrival time can invalidate its current gate assignment
+     * (the gate might now be occupied by another flight) and may cascade into
+     * other conflicts. Rather than freezing the UI while we fix this, we push the
+     * repair work onto a background thread and let the simulation clock keep ticking.
+     * The UI refreshes once the repair completes via the {@code onRepairComplete} callback.
      */
     public void applyDelay(Flight target, int delayMinutes) {
         target.setArrivalTime(target.getArrivalTime() + delayMinutes);
@@ -157,8 +181,18 @@ public class SimulationEngine {
     // Warm-Start Micro-GA repair
     // -------------------------------------------------------------------------
 
+    /**
+     * Runs a small GA on a snapshot of the current schedule to resolve conflicts
+     * introduced by a delay. Only unlocked flights (those not yet landed or at gate)
+     * are eligible for re-assignment — committed flights stay exactly where they are.
+     *
+     * <p>We use a much smaller population and fewer generations than the initial GA
+     * because the current chromosome is already close to optimal. The Micro-GA just
+     * needs to shuffle a handful of conflicting flights, not solve the whole problem.
+     */
     private int[] repairSchedule() {
-        // Build the set of locked flight indices (already committed flights)
+        // Flights that have already landed or are at the gate have physical commitments
+        // that can't be undone — lock them so the GA doesn't touch their assignments
         Set<Integer> lockedIndices = new HashSet<>();
         for (int i = 0; i < flights.size(); i++) {
             FlightState state = flights.get(i).getState();
@@ -169,16 +203,15 @@ public class SimulationEngine {
             }
         }
 
-        // Rebuild the repo from the current (possibly mutated) flight list so the
-        // GeneticEngine sees the updated arrivalTimes
+        // Rebuild the repository from the live flight list so the GA sees the updated
+        // arrival times (the delay may have changed them)
         FlightRepository liveRepo = new FlightRepository();
         for (Flight f : flights) {
             liveRepo.addFlight(f);
         }
 
         GeneticEngine repairEngine = new GeneticEngine(liveRepo, gates, graph);
-        // Micro-GA: small population, fewer generations — we start near-optimal
-        repairEngine.setParameters(60, 0.15, 50);
+        repairEngine.setParameters(MICRO_GA_POPULATION, MICRO_GA_MUTATION_RATE, MICRO_GA_GENERATIONS);
 
         System.out.println("[Micro-GA] Starting repair with " + lockedIndices.size()
                 + " locked flights out of " + flights.size());

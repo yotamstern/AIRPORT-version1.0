@@ -4,19 +4,25 @@ import model.Flight;
 import java.util.List;
 
 /**
- * Utility for sanity-checking schedules outside of the fitness function.
- * Mainly used in tests to verify a final solution has no gate collisions.
+ * A simple correctness checker used by tests to verify a final schedule has no
+ * gate collisions. This is intentionally separate from {@link FitnessEvaluator} —
+ * the evaluator is optimised for speed during GA evolution, while this class
+ * prioritises clarity and is only called once at the end for a sanity check.
  */
 public class ConstraintChecker {
 
+    // The GA uses real departure times from flight data; this checker uses a fixed
+    // turnaround as a conservative stand-in when testing without full flight objects
+    private static final int DEFAULT_TURNAROUND_MINUTES = 60;
+
     /**
-     * Returns the number of gate-time collisions in a schedule.
-     * O(N^2) — sorting to O(N log N) isn't worth it here since this is only
-     * called for verification, not during GA evolution.
+     * Counts how many pairs of flights share a gate and overlap in time.
+     * Uses an O(N²) brute-force scan — acceptable here because this is only
+     * called for final verification, never during the hot GA evolution loop.
      *
-     * @param chromosome Index-to-gateId mapping (same encoding as the GA chromosome).
-     * @param flights    Flight list, indexed to match the chromosome.
-     * @return Number of hard constraint violations found.
+     * @param chromosome gate assignment array (chromosome[i] = gate ID for flight i)
+     * @param flights    flight list, ordered the same way as the chromosome
+     * @return number of hard time-overlap violations found
      */
     public static int countCollisions(int[] chromosome, List<Flight> flights) {
         int collisions = 0;
@@ -38,10 +44,10 @@ public class ConstraintChecker {
                     // turnaround.
 
                     int start1 = f1.getArrivalTime();
-                    int end1 = start1 + 60; // 60 min turnaround
+                    int end1 = start1 + DEFAULT_TURNAROUND_MINUTES;
 
                     int start2 = f2.getArrivalTime();
-                    int end2 = start2 + 60; // 60 min turnaround
+                    int end2 = start2 + DEFAULT_TURNAROUND_MINUTES;
 
                     if (start1 < end2 && start2 < end1) {
                         collisions++;

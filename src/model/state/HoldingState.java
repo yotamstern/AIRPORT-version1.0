@@ -3,11 +3,10 @@ package model.state;
 import model.Flight;
 
 /**
- * Represents the state where the flight is holding/waiting for a gate.
- * This handles error or overflow scenarios.
- * <p>
- * State Pattern: Encapsulates logic for the "Holding" phase.
- * </p>
+ * The plane has landed but has no gate available — it circles or waits on the tarmac.
+ * Every simulated minute the engine ({@link model.simulation.SimulationEngine#tryAssignHoldingFlights})
+ * scans for a free compatible gate. As soon as one opens up, the flight transitions
+ * to {@link AtGateState} and the wait is over.
  */
 public class HoldingState implements FlightState {
 

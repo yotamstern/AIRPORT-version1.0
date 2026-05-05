@@ -3,12 +3,9 @@ package model.state;
 import model.Flight;
 
 /**
- * Represents the state where the flight has just landed.
- * This is a critical decision point for gate assignment.
- * <p>
- * State Pattern: Encapsulates logic for the "Landed" phase.
- * Future logic will handle gate assignment here.
- * </p>
+ * The plane has touched down. This is the critical fork in the road:
+ * if a gate was pre-assigned by the GA, the flight moves straight to {@link AtGateState};
+ * otherwise it enters {@link HoldingState} and waits for a gate to open up.
  */
 public class LandedState implements FlightState {
 

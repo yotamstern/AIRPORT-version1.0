@@ -19,25 +19,47 @@ import java.util.Queue;
 import java.util.Set;
 
 /**
- * Scores a gate assignment schedule so the GA can compare chromosomes.
- * Hard violations (overlaps, wrong gate size, wrong terminal) carry large
- * penalties; soft ones (walk distance, wasted space, tight transfers) are
- * weighted small so the GA can still rank nearly-valid solutions.
+ * Scores a gate-assignment schedule (chromosome) so the GA can tell which of two
+ * schedules is better. Think of it like a report card: each correctly assigned flight
+ * earns reward points, while violations subtract penalty points.
+ *
+ * <p><b>Hard penalties</b> (very large) punish things that are simply illegal —
+ * two planes sharing a gate at the same time, a jumbo jet squeezed into a small gate,
+ * or a domestic flight sent to an international terminal. Their huge size ensures
+ * the GA will almost always prefer fixing a hard violation over optimizing anything soft.
+ *
+ * <p><b>Soft penalties</b> (small) nudge the GA toward convenience goals that matter
+ * for passenger experience: shorter walks from the entrance, minimal wasted gate space,
+ * short connecting-passenger walks between gates, and keeping all flights of the same
+ * airline clustered together.
+ *
+ * <p>Final score: {@code reward − hardPenalties − softPenalties}.
+ * Higher is better; a perfect schedule with no violations has the highest possible score.
  */
 public class FitnessEvaluator {
     private TerminalGraph graph;
     private FlightRepository repo;
     private Map<Integer, Gate> gateMap;
 
-    // Constants
-    private static final double REWARD_VALID_FLIGHT = 10000.0;
-    private static final double HARD_PENALTY_OVERLAP = 15000.0;
-    private static final double HARD_PENALTY_SIZE = 50000.0;
-    private static final double HARD_PENALTY_INT = 50000.0;
-    private static final double SOFT_PENALTY_WALK = 0.1;// 0.1
-    private static final double SOFT_PENALTY_BUFFER = 50.0;// 50.0
-    private static final double SOFT_PENALTY_TRANSFER = 0.1;
-    private static final double SOFT_PENALTY_WASTE = 2000.0;
+    // --- Reward ---
+    private static final double REWARD_VALID_FLIGHT = 10000.0; // awarded per correctly assigned flight
+
+    // --- Hard penalties (must dwarf the reward so the GA never sacrifices correctness for soft gains) ---
+    private static final double HARD_PENALTY_OVERLAP = 15000.0; // two planes at the same gate simultaneously
+    private static final double HARD_PENALTY_SIZE = 50000.0;    // gate too small for the plane type
+    private static final double HARD_PENALTY_INT = 50000.0;     // domestic plane at international terminal (or vice-versa)
+
+    // --- Soft penalties (guide quality improvements once hard violations are resolved) ---
+    private static final double SOFT_PENALTY_WALK = 0.1;        // per passenger·distance-unit from the entrance
+    private static final double SOFT_PENALTY_BUFFER = 50.0;     // per gate with less than BUFFER_TIME_THRESHOLD between consecutive flights
+    private static final double SOFT_PENALTY_TRANSFER = 0.1;    // per connecting passenger·distance-unit between their two gates
+    private static final double SOFT_PENALTY_WASTE = 2000.0;    // per wasted-space level (e.g., small plane at a jumbo gate)
+
+    private static final int ENTRANCE_GATE_ID = 1;              // walking distance is measured from gate 1 (the terminal entrance)
+    private static final double UNREACHABLE_GATE_PENALTY = 1000.0; // large flat penalty when a gate has no graph path from the entrance
+    private static final double AIRLINE_CLUSTERING_PENALTY = 1500.0; // per extra disconnected cluster of gates for the same airline
+    private static final int AIRLINE_CODE_LENGTH = 2;           // "UA" from "UA-123" — the prefix before the dash
+    private static final int BUFFER_TIME_THRESHOLD = 15;        // minimum minutes required between consecutive flights at a gate
 
     public FitnessEvaluator(TerminalGraph graph, FlightRepository repo, List<Gate> gates) {
         this.graph = graph;
@@ -51,8 +73,10 @@ public class FitnessEvaluator {
     }
 
     /**
-     * Returns 0 if the gate is a good fit, 1 if slightly oversized, 2 if very oversized.
-     * Used both for the fitness penalty and for the gate preference logic in the GA.
+     * Measures how much bigger the gate is than the plane actually needs.
+     * Returns 0 for a perfect fit, 1 for one size too large, 2 for two sizes too large.
+     * A small plane at a jumbo gate isn't illegal, but it wastes expensive infrastructure
+     * — so the GA is nudged to prefer exact-fit assignments via a soft penalty.
      */
     public int getWastedSpaceLevel(GateSize gateSize, PlaneType planeType) {
         if (planeType == PlaneType.SMALL_BODY) {
@@ -97,8 +121,9 @@ public class FitnessEvaluator {
     }
 
     /**
-     * Helper method to check if a Gate is large enough for a PlaneType.
-     * Task 1: Hard Penalty 2 logic helper.
+     * Returns true if the gate can physically accommodate the plane.
+     * Small planes fit anywhere; large planes need a large or jumbo gate;
+     * jumbo planes can only use jumbo gates.
      */
     public boolean isGateLargeEnough(GateSize gateSize, PlaneType planeType) {
         if (planeType == PlaneType.SMALL_BODY)
@@ -111,13 +136,16 @@ public class FitnessEvaluator {
     }
 
     /**
-     * Calculates the fitness of a chromosome (schedule).
-     * 
-     * Formula: Fitness = BaseScore - HardPenalties - SoftPenalties
-     * 
-     * @param chromosome The schedule to evaluate.
-     * @param flights    The list of flights.
-     * @return The fitness score.
+     * Scores a complete gate-assignment schedule.
+     *
+     * <p>The chromosome is an int array where {@code chromosome[i]} is the gate ID
+     * assigned to {@code flights.get(i)}. The method walks through every flight,
+     * every gate's time-sorted queue, every passenger walk, every connecting transfer,
+     * and every airline cluster — accumulating rewards and penalties as it goes.
+     *
+     * @param chromosome the schedule to score (index → gate ID mapping)
+     * @param flights    flight list ordered the same way as the chromosome
+     * @return fitness score; higher is better, negative means many hard violations
      */
     public double calculateFitness(int[] chromosome, List<Flight> flights) {
         double hardPenalties = 0;
@@ -137,105 +165,102 @@ public class FitnessEvaluator {
             
             flightIdToGateMap.put(f.getId(), gateId);
 
-            // Hard Penalty 2: Size Mismatch (-50000 points)
             Gate gate = gateMap.get(gateId);
             boolean isValidSize = gate != null && isGateLargeEnough(gate.getSize(), f.getType());
             boolean isValidInt = gate != null && f.isInternational() == gate.isInternational();
 
             if (!isValidSize) {
-                hardPenalties += HARD_PENALTY_SIZE;
+                hardPenalties += HARD_PENALTY_SIZE; // plane physically can't fit at this gate
             }
 
-            // Hard Penalty 3: Domestic/International mismatch (-50000 points)
             if (!isValidInt) {
-                hardPenalties += HARD_PENALTY_INT;
+                hardPenalties += HARD_PENALTY_INT;  // domestic/international terminal mismatch
             }
 
             if (isValidSize && isValidInt) {
                 reward += REWARD_VALID_FLIGHT;
+                // Penalise over-sized assignments (e.g., small plane at a jumbo gate)
                 softPenalties += getWastedSpaceLevel(gate.getSize(), f.getType()) * SOFT_PENALTY_WASTE;
             }
         }
 
-        // Check for Time Overlaps and Buffer Time per gate
+        // Check each gate's time-sorted queue for overlapping flights and tight buffers.
+        // Sorting by arrival time lets us compare only adjacent pairs (O(N log N) total).
         for (Map.Entry<Integer, List<Flight>> entry : gateAssignments.entrySet()) {
             List<Flight> assignedFlights = entry.getValue();
-            // Sort flights by arrival time to properly check for overlaps and consecutive
-            // spacing
             assignedFlights.sort(Comparator.comparingInt(Flight::getArrivalTime));
 
-            // Check for Time Overlaps and Buffer Time per gate (O(N log N) Approach)
             for (int i = 0; i < assignedFlights.size() - 1; i++) {
                 Flight f1 = assignedFlights.get(i);
                 Flight fNext = assignedFlights.get(i + 1);
 
-                // Hard Penalty 1: Time Overlap (-5000 points)
-                // Since it's sorted by arrival time, fNext arrivals always occur at or after f1
-                // arrivals.
-                // We only have an overlap if fNext arrives BEFORE f1 departs.
                 if (fNext.getArrivalTime() < f1.getDepartureTime()) {
+                    // Two planes occupying the same gate at the same time — hard violation
                     hardPenalties += HARD_PENALTY_OVERLAP;
                 } else {
-                    // Soft Penalty 2: Buffer Time (-50 points if less than 15 mins for consecutive
-                    // flights)
-                    // If they don't overlap, check the buffer gap.
+                    // No overlap, but check whether ground crews have enough turnaround time
                     int buffer = fNext.getArrivalTime() - f1.getDepartureTime();
-                    if (buffer < 15) {
+                    if (buffer < BUFFER_TIME_THRESHOLD) {
                         softPenalties += SOFT_PENALTY_BUFFER;
                     }
                 }
             }
         }
 
-        // Soft Penalty 1: Walking Distance (-0.1 per passenger·distance unit)
-        // Weighted by passenger count so a full jumbo jet far from the entrance
-        // is penalised much more than an empty regional flight at the same gate.
+        // Walking distance: penalise long walks from the terminal entrance to each gate.
+        // Weighted by passenger count — a full jumbo jet walking far costs much more
+        // than a near-empty regional flight at the same distance.
         double totalWalkingDistance = 0;
         for (int i = 0; i < chromosome.length; i++) {
             int gateId = chromosome[i];
             Flight f = flights.get(i);
-            int pax = Math.max(1, f.getPassengerCount()); // treat 0 as 1 to avoid nullifying penalty
-            double dist = graph.getShortestDistance(1, gateId); // Distance from Entrance (Gate 1)
+            int pax = Math.max(1, f.getPassengerCount()); // treat 0 as 1 so penalty is never nullified
+            double dist = graph.getShortestDistance(ENTRANCE_GATE_ID, gateId);
             if (dist != Double.POSITIVE_INFINITY) {
                 totalWalkingDistance += dist * pax;
             } else {
-                totalWalkingDistance += 1000 * pax; // Large penalty for unreachable gate
+                // Gate has no path from the entrance — apply a large flat penalty
+                totalWalkingDistance += UNREACHABLE_GATE_PENALTY * pax;
             }
         }
         softPenalties += totalWalkingDistance * SOFT_PENALTY_WALK;
 
-        // Soft Penalty: Transfer Walking Distance
+        // Transfer distance: passengers connecting between two flights have to walk
+        // from the arrival gate to the departure gate. Minimising this benefits
+        // tight-connection passengers the most.
         double totalTransferDistance = 0;
         if (repo.getAllTransfers() != null) {
             for (Transfer transfer : repo.getAllTransfers()) {
                 Integer fromGateId = flightIdToGateMap.get(transfer.getFromFlightId());
                 Integer toGateId = flightIdToGateMap.get(transfer.getToFlightId());
-                
+
                 if (fromGateId != null && toGateId != null) {
                     double dist = graph.getShortestDistance(fromGateId, toGateId);
                     if (dist != Double.POSITIVE_INFINITY) {
-                        // Weight the distance by the number of transferring passengers
                         totalTransferDistance += dist * transfer.getNumPassengers();
                     } else {
-                        totalTransferDistance += 1000 * transfer.getNumPassengers(); // Unreachable penalty
+                        totalTransferDistance += UNREACHABLE_GATE_PENALTY * transfer.getNumPassengers();
                     }
                 }
             }
         }
         softPenalties += totalTransferDistance * SOFT_PENALTY_TRANSFER;
 
-        // Soft Penalty: Airline Clustering (Connected Components)
+        // Airline clustering: ideally all flights of the same airline use adjacent gates
+        // so their ground crews and check-in desks are co-located. We count how many
+        // disconnected gate clusters each airline has and penalise every extra cluster
+        // beyond the first.
         Map<String, List<Integer>> airlineGatesMap = new HashMap<>();
-
         for (int i = 0; i < chromosome.length; i++) {
             int gateId = chromosome[i];
             Flight f = flights.get(i);
-            
-            // Extract the 2-letter airline prefix (e.g., "UA" from "UA-123")
-            // Make sure the split array holds at least 2 elements so it doesn't crash on bad data
+
+            // Extract airline prefix from flight code (e.g., "UA" from "UA-123").
+            // Fall back to the first AIRLINE_CODE_LENGTH characters if there is no dash.
             String[] parts = f.getFlightCode().split("-");
-            String airlineCode = parts.length > 1 ? parts[0] : f.getFlightCode().substring(0, Math.min(2, f.getFlightCode().length()));
-            
+            String airlineCode = parts.length > 1 ? parts[0]
+                    : f.getFlightCode().substring(0, Math.min(AIRLINE_CODE_LENGTH, f.getFlightCode().length()));
+
             airlineGatesMap.computeIfAbsent(airlineCode, k -> new ArrayList<>()).add(gateId);
         }
 
@@ -244,8 +269,7 @@ public class FitnessEvaluator {
             if (gates.size() > 1) {
                 int components = countConnectedComponents(gates, graph);
                 if (components > 1) {
-                    // Apply a penalty of 1500 for every distinct, disconnected cluster beyond the first
-                    softPenalties += ((components - 1) * 1500.0);
+                    softPenalties += ((components - 1) * AIRLINE_CLUSTERING_PENALTY);
                 }
             }
         }

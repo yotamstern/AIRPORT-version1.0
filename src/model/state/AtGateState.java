@@ -4,10 +4,9 @@ import model.Flight;
 import model.enums.GateStatus;
 
 /**
- * Represents the state where the flight is successfully parked at a gate.
- * <p>
- * State Pattern: Encapsulates logic for the "At Gate" phase.
- * </p>
+ * The plane is parked and passengers are boarding or disembarking.
+ * When the scheduled departure time arrives, the gate is freed and the flight
+ * moves to {@link DepartedState} — its final, terminal state.
  */
 public class AtGateState implements FlightState {
 

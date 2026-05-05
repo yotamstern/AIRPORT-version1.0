@@ -10,11 +10,25 @@ import model.enums.PlaneType;
 import java.util.*;
 
 /**
- * Produces a greedy initial gate assignment by processing flights in urgency order.
- * Used to seed part of the GA's starting population with a reasonable solution
- * rather than relying entirely on random chromosomes.
+ * Generates a fast, rule-based gate assignment to give the GA a head start.
+ *
+ * <p>Rather than letting the GA explore from a completely random population, we seed
+ * a fraction of it with a greedy solution. The greedy approach processes flights in
+ * urgency order (highest priority first) and assigns each one to the best available
+ * gate, using a three-tier preference:
+ * <ol>
+ *   <li>Exact size match at a free gate — the ideal outcome.</li>
+ *   <li>Oversized gate (e.g., large gate for a small plane) — wasteful but correct.</li>
+ *   <li>Force-assign to any compatible gate ignoring time conflicts — lets the GA fix overlaps later.</li>
+ * </ol>
+ *
+ * <p>The result isn't perfect, but it's far better than random, so the GA spends fewer
+ * generations climbing out of bad territory and more time refining a good solution.
  */
 public class GreedyInitializer {
+
+    private static final int TURNAROUND_BUFFER_MINUTES = 15;
+
     private FlightRepository flightRepo;
     private List<Gate> gates;
 
@@ -77,7 +91,7 @@ public class GreedyInitializer {
                 if (!requireFreeTime || gateFreeAt.get(g.getId()) <= f.getArrivalTime()) {
                     schedule.put(f.getId(), g.getId());
                     if (requireFreeTime) {
-                        gateFreeAt.put(g.getId(), f.getDepartureTime() + 15);
+                        gateFreeAt.put(g.getId(), f.getDepartureTime() + TURNAROUND_BUFFER_MINUTES);
                     }
                     return true;
                 }
